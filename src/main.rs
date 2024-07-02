@@ -14,8 +14,8 @@ const CURSOR_STYLE: cursor::SetCursorStyle = cursor::SetCursorStyle::BlinkingBar
 use nlo_text_editor_client::application::AppState;
 use nlo_text_editor_client::ui::UserInterface;
 use nlo_text_editor_client::events;
-use nlo_text_editor_server::{ServerAction, ServerResponse};
-use nlo_text_editor_server::MESSAGE_SIZE;
+use nlo_text_editor_client::{send_action_to_server, read_server_response};
+use nlo_text_editor_server::ServerAction;
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use crossterm::{
     cursor,
@@ -26,7 +26,6 @@ use crossterm::{
 };
 use std::error::Error;
 use std::net::TcpStream;
-use std::io::{Read, Write};
 
 fn main() -> Result<(), Box<dyn Error>>{
     let (mut terminal, supports_keyboard_enhancement) = setup_terminal()?;
@@ -146,35 +145,4 @@ fn open_file_if_supplied(stream: &mut TcpStream, file: String, ui: &mut UserInte
     events::process_server_response(response, ui);
 
     Ok(())
-}
-
-fn send_action_to_server(stream: &mut TcpStream, action: ServerAction) -> Result<(), Box<dyn Error>>{
-    let serialized_action = ron::to_string(&action)?;
-    match stream.write(serialized_action.as_bytes()){
-        Ok(bytes_written) => {
-            if bytes_written == 0{} else {}
-        }
-        Err(e) => {return Err(Box::new(e));}
-    }
-    stream.flush()?;
-
-    Ok(())
-}
-
-fn read_server_response(stream: &mut TcpStream) -> Result<ServerResponse, Box<dyn Error>>{
-    let mut response_buffer = [0u8; MESSAGE_SIZE];
-    match stream.read(&mut response_buffer){
-        Ok(size) => {
-            let my_string = String::from_utf8_lossy(&response_buffer[0..size]);
-            match ron::from_str(&my_string){
-                Ok(response) => {return Ok(response)},
-                Err(e) => {return Err(Box::new(e));}
-            };
-        }
-        Err(e) => {
-            println!("An error occurred. {}", e);
-            stream.shutdown(std::net::Shutdown::Both).unwrap();
-            return Err(Box::new(e));
-        }
-    }
 }

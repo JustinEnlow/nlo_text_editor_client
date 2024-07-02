@@ -1,5 +1,6 @@
 use crate::application::{AppState, Mode};
 use crate::ui::UserInterface;
+use crate::{send_action_to_server, read_server_response};
 use std::error::Error;
 use std::io::Write;
 use std::net::TcpStream;
@@ -722,6 +723,12 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
             //ui.scroll(editor);
             //ui.util_bar_mut().scroll();
             //ui.util_bar_alternate_mut().scroll();
+
+            // let server know of change
+            let action = ServerAction::UpdateClientView(ui.document_rect().width, ui.document_rect().height);
+            send_action_to_server(stream, action)?;
+            let response = read_server_response(stream)?;
+            crate::events::process_server_response(response, ui);
         }
         _ => {}
     }
