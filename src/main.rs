@@ -9,14 +9,13 @@
         // SteadyBar
 const CURSOR_STYLE: cursor::SetCursorStyle = cursor::SetCursorStyle::BlinkingBar;
 
-const MESSAGE_SIZE: usize = 1024;
-
 
 
 use nlo_text_editor_client::application::AppState;
 use nlo_text_editor_client::ui::UserInterface;
 use nlo_text_editor_client::events;
 use nlo_text_editor_server::{ServerAction, ServerResponse};
+use nlo_text_editor_server::MESSAGE_SIZE;
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use crossterm::{
     cursor,
@@ -36,24 +35,27 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     let mut stream = match TcpStream::connect("127.0.0.1:7878"){
         Ok(stream) => {stream}
-        // if can't connect, spawn new nlo_text_editor_server and retry
-        Err(e) => return Err(Box::new(e))
+        //TODO: if can't connect, spawn new nlo_text_editor_server and retry
+        Err(e) => {
+            restore_terminal(&mut terminal, supports_keyboard_enhancement)?;
+            println!("Could not connect to tcp stream. error: {}", e);
+            return Err(Box::new(e));
+        }
     };
 
     let mut args: Vec<String> = std::env::args().skip(1).collect();
-    let arg = args.pop();
-    // tell editor to open file, if one supplied
-    open_file_if_supplied(&mut stream, arg, &mut ui)?;
+    if let Some(file) = args.pop(){
+        ui.update_layouts(); //ensures we get the proper document rect size
+        open_file_if_supplied(&mut stream, file, &mut ui)?;
+    }
     
-
-    let result = run(&mut terminal, &mut app, &mut ui, &mut stream);
-
-    restore_terminal(&mut terminal, supports_keyboard_enhancement)?;
-
-    if result.is_err(){
-        println!("{:?}", result);
+    if let Err(e) = run(&mut terminal, &mut app, &mut ui, &mut stream){
+        restore_terminal(&mut terminal, supports_keyboard_enhancement)?;
+        println!("Encountered an error while running nlo text editor client. error: {}", e);
+        return Err(e);
     }
 
+    restore_terminal(&mut terminal, supports_keyboard_enhancement)?;
     Ok(())
 }
 
@@ -123,37 +125,56 @@ fn restore_terminal(
     Ok(())
 }
 
-fn open_file_if_supplied(stream: &mut TcpStream, arg: Option<String>, ui: &mut UserInterface) -> Result<(), Box<dyn Error>>{
-    if let Some(file) = arg{
-        let action = ServerAction::OpenFile(file);
-        let serialized_action = ron::to_string(&action)?;
-        match stream.write(serialized_action.as_bytes()){
-            Ok(bytes_written) => {
-                if bytes_written == 0{} else {}
-            }
-            Err(e) => {return Err(Box::new(e));}
-        }
-        stream.flush()?;
+fn open_file_if_supplied(stream: &mut TcpStream, file: String, ui: &mut UserInterface) -> Result<(), Box<dyn Error>>{
+    //OPEN FILE
+    let action = ServerAction::OpenFile(file);
+    send_action_to_server(stream, action)?;
+    let response = read_server_response(stream)?;
+    ui.set_document_open(true);
+    events::process_server_response(response, ui);
 
-        // read response from server
-        let mut response_buffer = [0u8; MESSAGE_SIZE];
-        match stream.read(&mut response_buffer){
-            Ok(size) => {
-                let my_string = String::from_utf8_lossy(&response_buffer[0..size]);
-                let server_response: ServerResponse = match ron::from_str(&my_string){
-                    Ok(response) => {response},
-                    Err(e) => {return Err(Box::new(e));}
-                };
-                //println!("Client received: {:#?}", server_response);
-                ui.set_document_open(true);
-                events::process_server_response(server_response, ui);
-            }
-            Err(e) => {
-                println!("An error occurred. {}", e);
-                stream.shutdown(std::net::Shutdown::Both).unwrap();
-            }
-        }
-    }
+    //UPDATE CLIENT VIEW SIZE
+    let action = ServerAction::UpdateClientView(ui.document_rect().width, ui.document_rect().height);
+    send_action_to_server(stream, action)?;
+    let response = read_server_response(stream)?;
+    events::process_server_response(response, ui);
+
+    //REQUEST CLIENT VIEW TEXT
+    let action = ServerAction::RequestClientViewText;
+    send_action_to_server(stream, action)?;
+    let response = read_server_response(stream)?;
+    events::process_server_response(response, ui);
 
     Ok(())
+}
+
+fn send_action_to_server(stream: &mut TcpStream, action: ServerAction) -> Result<(), Box<dyn Error>>{
+    let serialized_action = ron::to_string(&action)?;
+    match stream.write(serialized_action.as_bytes()){
+        Ok(bytes_written) => {
+            if bytes_written == 0{} else {}
+        }
+        Err(e) => {return Err(Box::new(e));}
+    }
+    stream.flush()?;
+
+    Ok(())
+}
+
+fn read_server_response(stream: &mut TcpStream) -> Result<ServerResponse, Box<dyn Error>>{
+    let mut response_buffer = [0u8; MESSAGE_SIZE];
+    match stream.read(&mut response_buffer){
+        Ok(size) => {
+            let my_string = String::from_utf8_lossy(&response_buffer[0..size]);
+            match ron::from_str(&my_string){
+                Ok(response) => {return Ok(response)},
+                Err(e) => {return Err(Box::new(e));}
+            };
+        }
+        Err(e) => {
+            println!("An error occurred. {}", e);
+            stream.shutdown(std::net::Shutdown::Both).unwrap();
+            return Err(Box::new(e));
+        }
+    }
 }

@@ -731,10 +731,12 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
 pub fn process_server_response(response: ServerResponse, ui: &mut UserInterface){
     match response{
         ServerResponse::ConnectionSucceeded => {}
+        ServerResponse::Acknowledge => {}
         ServerResponse::DisplayView(content) => {
             //println!("Client received: {:#?}", content);
-            ui.set_text_in_view(content);
+            ui.set_text_in_view(content); //TODO: generate a client action instead of directly performing this
         }
+        ServerResponse::Failed(_) => {}
     }
 }
 
