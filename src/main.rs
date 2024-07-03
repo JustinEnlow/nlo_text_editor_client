@@ -132,10 +132,6 @@ fn open_file_if_supplied(stream: &mut TcpStream, file: String, ui: &mut UserInte
     let response = do_ipc_things(stream, ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height))?;
     events::process_server_response(response, ui);
 
-    //REQUEST CLIENT VIEW TEXT
-    let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
-    events::process_server_response(response, ui);
-
     //REQUEST CLIENT CURSOR POSITION
     let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
     events::process_server_response(response, ui);

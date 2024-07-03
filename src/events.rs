@@ -70,14 +70,8 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
             //ui.util_bar_mut().scroll();
             //ui.util_bar_alternate_mut().scroll();
 
-            // let server know of change. this somehow seems to work without calling RequestClientViewText. not sure how. magic?
             let response = do_ipc_things(stream, ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height))?;
             process_server_response(response, ui);
-            
-            // send RequestClientViewText to server?
-            let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
-            process_server_response(response, ui);
-            //
         }
         _ => {}
     }
@@ -101,10 +95,6 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
         ClientAction::MoveCursorDown => {
             // send server move cursor down
             let response = do_ipc_things(stream, ServerAction::MoveCursorDown)?;
-            process_server_response(response, ui);
-
-            // request client view text         //TODO: fix having to refresh text every time, even if view isn't changing
-            let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
             process_server_response(response, ui);
 
             // request client cursor position
@@ -152,10 +142,6 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
             let response = do_ipc_things(stream, ServerAction::MoveCursorUp)?;
             process_server_response(response, ui);
 
-            // request client view text         //TODO: fix having to refresh text every time, even if view isn't changing
-            let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
-            process_server_response(response, ui);
-
             // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
             process_server_response(response, ui);
@@ -181,10 +167,6 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
             // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewDown(amount))?;
             process_server_response(response, ui);
-            
-            // request client view text
-            let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
-            process_server_response(response, ui);
 
             // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
@@ -193,10 +175,6 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
         ClientAction::ScrollViewLeft(amount) => {
             // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewLeft(amount))?;
-            process_server_response(response, ui);
-            
-            // request client view text
-            let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
             process_server_response(response, ui);
 
             // request client cursor position
@@ -207,10 +185,6 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
             // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewRight(amount))?;
             process_server_response(response, ui);
-            
-            // request client view text
-            let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
-            process_server_response(response, ui);
 
             // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
@@ -219,10 +193,6 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
         ClientAction::ScrollViewUp(amount) => {
             // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewUp(amount))?;
-            process_server_response(response, ui);
-            
-            // request client view text
-            let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
             process_server_response(response, ui);
 
             // request client cursor position
