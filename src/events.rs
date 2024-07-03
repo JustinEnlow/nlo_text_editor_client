@@ -7,6 +7,8 @@ use std::net::TcpStream;
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use nlo_text_editor_server::{ServerAction, ServerResponse};
 
+const VIEW_SCROLL_AMOUNT: usize = 1;
+
 
 pub enum ClientAction{
     MoveCursorDocumentEnd,
@@ -43,10 +45,10 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
                 (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Home,          ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentStart}
                 (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::End,           ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentEnd}
                 (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'),     ..}, Mode::Insert) => {ClientAction::QuitIgnoringChanges}//{Action::Quit}
-                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::ScrollViewDown(1)}
-                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::ScrollViewLeft(1)}
-                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Right,         ..}, Mode::Insert) => {ClientAction::ScrollViewRight(1)}
-                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::ScrollViewUp(1)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::ScrollViewDown(VIEW_SCROLL_AMOUNT)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::ScrollViewLeft(VIEW_SCROLL_AMOUNT)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Right,         ..}, Mode::Insert) => {ClientAction::ScrollViewRight(VIEW_SCROLL_AMOUNT)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::ScrollViewUp(VIEW_SCROLL_AMOUNT)}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::MoveCursorUp}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::MoveCursorDown}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::MoveCursorLeft}
@@ -72,6 +74,8 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
 
             let response = do_ipc_things(stream, ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height))?;
             process_server_response(response, ui);
+            let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+            process_server_response(response, ui);
         }
         _ => {}
     }
@@ -93,56 +97,50 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
             //ui.scroll(editor);
         }
         ClientAction::MoveCursorDown => {
-            // send server move cursor down
             let response = do_ipc_things(stream, ServerAction::MoveCursorDown)?;
             process_server_response(response, ui);
-
-            // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
             process_server_response(response, ui);
         }
         ClientAction::MoveCursorLeft => {
-            //if let Some(doc) = editor.document_mut(){
-            //    doc.move_cursor_left();
-            //}
-            //ui.scroll(editor);
+            let response = do_ipc_things(stream, ServerAction::MoveCursorLeft)?;
+            process_server_response(response, ui);
+            let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+            process_server_response(response, ui);
         }
         ClientAction::MoveCursorLineEnd => {
-            //if let Some(doc) = editor.document_mut(){
-            //    doc.move_cursor_end();
-            //}
-            //ui.scroll(editor);
+            let response = do_ipc_things(stream, ServerAction::MoveCursorLineEnd)?;
+            process_server_response(response, ui);
+            let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+            process_server_response(response, ui);
         }
         ClientAction::MoveCursorLineStart => {
-            //if let Some(doc) = editor.document_mut(){
-            //    doc.move_cursor_home();
-            //}
-            //ui.scroll(editor);
+            let response = do_ipc_things(stream, ServerAction::MoveCursorLineStart)?;
+            process_server_response(response, ui);
+            let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+            process_server_response(response, ui);
         }
         ClientAction::MoveCursorRight => {
-            //if let Some(doc) = editor.document_mut(){
-            //    doc.move_cursor_right();
-            //}
-            //ui.scroll(editor);
+            let response = do_ipc_things(stream, ServerAction::MoveCursorRight)?;
+            process_server_response(response, ui);
+            let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+            process_server_response(response, ui);
         }
         ClientAction::MoveCursorPageUp => {
-            //if let Some(doc) = editor.document_mut(){
-            //    doc.move_cursor_page_up(ui.document_rect().height as usize);
-            //}
-            //ui.scroll(editor);
+            let response = do_ipc_things(stream, ServerAction::MoveCursorPageUp)?;
+            process_server_response(response, ui);
+            let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+            process_server_response(response, ui);
         }
         ClientAction::MoveCursorPageDown => {
-            //if let Some(doc) = editor.document_mut(){
-            //    doc.move_cursor_page_down(ui.document_rect().height as usize);
-            //}
-            //ui.scroll(editor);
+            let response = do_ipc_things(stream, ServerAction::MoveCursorPageDown)?;
+            process_server_response(response, ui);
+            let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+            process_server_response(response, ui);
         }
         ClientAction::MoveCursorUp => {
-            // send server move cursor up
             let response = do_ipc_things(stream, ServerAction::MoveCursorUp)?;
             process_server_response(response, ui);
-
-            // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
             process_server_response(response, ui);
         }
@@ -164,38 +162,26 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
             stream.flush()?;
         }
         ClientAction::ScrollViewDown(amount) => {
-            // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewDown(amount))?;
             process_server_response(response, ui);
-
-            // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
             process_server_response(response, ui);
         }
         ClientAction::ScrollViewLeft(amount) => {
-            // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewLeft(amount))?;
             process_server_response(response, ui);
-
-            // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
             process_server_response(response, ui);
         }
         ClientAction::ScrollViewRight(amount) => {
-            // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewRight(amount))?;
             process_server_response(response, ui);
-
-            // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
             process_server_response(response, ui);
         }
         ClientAction::ScrollViewUp(amount) => {
-            // send scroll view action to server
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewUp(amount))?;
             process_server_response(response, ui);
-
-            // request client cursor position
             let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
             process_server_response(response, ui);
         }
