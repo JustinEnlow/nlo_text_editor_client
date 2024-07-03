@@ -9,7 +9,7 @@ use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use nlo_text_editor_server::{ServerAction, ServerResponse};
 
 
-enum ClientAction{
+pub enum ClientAction{
     Backspace,
     CloseDocument,
     CloseDocumentIgnoringChanges,
@@ -85,6 +85,10 @@ enum ClientAction{
     SaveAsModeMoveCursorLineEnd,
     SaveAsModeMoveCursorLineStart,
     SaveAsModeMoveCursorRight,
+    ScrollViewDown(usize),
+    ScrollViewLeft(usize),
+    ScrollViewRight(usize),
+    ScrollViewUp(usize),
     SetModeCommand,
     SetModeFindReplace,
     SetModeGoto,
@@ -98,7 +102,7 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
     match event::read()?{
         event::Event::Key(key_event) => {
             let action = match (key_event, app.mode()){
-            // Insert Mode
+                // Insert Mode
                 //(KeyEvent{modifiers: KeyModifiers::CONTROL | KeyModifiers::SHIFT, code, ..}, Mode::Insert) => {Action::}
                 (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::IncrementFocusedDocument}
                 (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::DecrementFocusedDocument}
@@ -123,6 +127,10 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
                 (KeyEvent{modifiers: KeyModifiers::SHIFT,   code: KeyCode::Home,          ..}, Mode::Insert) => {ClientAction::ExtendSelectionLineStart}
                 (KeyEvent{modifiers: KeyModifiers::SHIFT,   code: KeyCode::End,           ..}, Mode::Insert) => {ClientAction::ExtendSelectionLineEnd}
                 (KeyEvent{modifiers: KeyModifiers::SHIFT,   code: KeyCode::Char(c),       ..}, Mode::Insert) => {ClientAction::InsertChar(c)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::ScrollViewDown(1)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::ScrollViewLeft(1)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Right,         ..}, Mode::Insert) => {ClientAction::ScrollViewRight(1)}
+                (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::ScrollViewUp(1)}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Tab,           ..}, Mode::Insert) => {ClientAction::InsertTab}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Enter,         ..}, Mode::Insert) => {ClientAction::InsertNewline}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Delete,        ..}, Mode::Insert) => {ClientAction::Delete}
@@ -138,12 +146,12 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Esc,           ..}, Mode::Insert) => {ClientAction::CollapseSelectionCursor}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Char(c), ..}, Mode::Insert) => {ClientAction::InsertChar(c)}
                 
-            // Warning Mode
+                // Warning Mode
                 (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'), ..}, Mode::Warning(_)) => {ClientAction::QuitIgnoringChanges}
                 (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('w'), ..}, Mode::Warning(_)) => {ClientAction::CloseDocumentIgnoringChanges}
                 (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Esc,       ..}, Mode::Warning(_)) => {ClientAction::WarningModeExit}
                 
-            // SaveAs Mode
+                // SaveAs Mode
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Enter,         ..}, Mode::SaveAs) => {ClientAction::SaveAsModeAccept}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Delete,        ..}, Mode::SaveAs) => {ClientAction::SaveAsModeDelete}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Backspace,     ..}, Mode::SaveAs) => {ClientAction::SaveAsModeBackspace}
@@ -154,7 +162,7 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::SaveAs) => {ClientAction::SaveAsModeClear}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::SaveAs) => {ClientAction::SaveAsModeInsertChar(c)}
 
-            // Goto Mode
+                // Goto Mode
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::Goto) => {ClientAction::GotoModeExit}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Enter,         ..}, Mode::Goto) => {ClientAction::GotoModeAccept}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Backspace,     ..}, Mode::Goto) => {ClientAction::GotoModeBackspace}
@@ -165,7 +173,7 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::End,           ..}, Mode::Goto) => {ClientAction::GotoModeMoveCursorLineEnd}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::Goto) => {ClientAction::GotoModeInsertChar(c)}
             
-            // FindReplace Mode
+                // FindReplace Mode
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeExit}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Tab,           ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeSwitchUtilBarFocus}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Up,            ..}, Mode::FindReplace) => {ClientAction::FindReplaceModePreviousInstance}
@@ -179,7 +187,7 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Enter,         ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeAccept}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeInsertChar(c)}
             
-            // Command Mode
+                // Command Mode
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::Command) => {ClientAction::CommandModeExit}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::Command) => {ClientAction::CommandModeInsertChar(c)}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Enter,         ..}, Mode::Command) => {ClientAction::CommandModeAccept}
@@ -190,532 +198,12 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Home,          ..}, Mode::Command) => {ClientAction::CommandModeMoveCursorLineStart}
                 (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::End,           ..}, Mode::Command) => {ClientAction::CommandModeMoveCursorLineEnd}
 
-            // unhandled keybinds
+                // unhandled keybinds
                 _ => {ClientAction::NoOp}
             };
 
-
-    // perform actions
-            match action{
-                ClientAction::Backspace => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.backspace();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::CloseDocument => {
-                    //if let Some(doc) = editor.document(){
-                    //    if doc.is_modified(){
-                    //        app.set_mode(Mode::Warning(WarningKind::FocusedFileIsModified));
-                    //    }else{
-                    //        editor.close_document();
-                    //    }
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::CloseDocumentIgnoringChanges => {
-                    //editor.close_document();
-                    //app.set_mode(Mode::Insert);
-                    //ui.scroll(editor);
-                }
-                ClientAction::CollapseSelectionCursor => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.collapse_selection_cursors();
-                    //}
-                    //app.set_mode(Mode::Insert);
-                    //ui.scroll(editor); // this needed here?
-                }
-                ClientAction::CommandModeAccept => {
-                    //if parse_command(editor, ui.util_bar().text()).is_ok(){
-                    //if parse_command(ui.util_bar().text()).is_ok(){
-                    //    ui.util_bar_mut().clear();
-                    //    ui.util_bar_mut().set_offset(0);
-                    //    app.set_mode(Mode::Insert);
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::CommandModeBackspace => {
-                    //ui.util_bar_mut().backspace();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::CommandModeDelete => {
-                    //ui.util_bar_mut().delete();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::CommandModeExit => {
-                    //ui.util_bar_mut().clear();
-                    //ui.util_bar_mut().set_offset(0);
-                    //app.set_mode(Mode::Insert);
-                }
-                ClientAction::CommandModeInsertChar(_) => {
-                    //ui.util_bar_mut().insert_char(c);
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::CommandModeMoveCursorLeft => {
-                    //ui.util_bar_mut().move_cursor_left();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::CommandModeMoveCursorLineEnd => {
-                    //ui.util_bar_mut().move_cursor_end();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::CommandModeMoveCursorLineStart => {
-                    //ui.util_bar_mut().move_cursor_home();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::CommandModeMoveCursorRight => {
-                    //ui.util_bar_mut().move_cursor_right();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::DecrementFocusedDocument => {
-                    //editor.decrement_focused_document();
-                    //ui.scroll(editor);
-                }
-                ClientAction::Delete => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.delete();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::DisplayLineNumbers => {/*ui.set_display_line_numbers(!ui.display_line_numbers())*/}
-                ClientAction::DisplayStatusBar => {/*ui.set_display_status_bar(!ui.display_status_bar())*/}
-                ClientAction::ExtendSelectionDown => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.extend_selection_down();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::ExtendSelectionLeft => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.extend_selection_left();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::ExtendSelectionLineEnd => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.extend_selection_end();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::ExtendSelectionLineStart => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.extend_selection_home();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::ExtendSelectionRight => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.extend_selection_right();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::ExtendSelectionUp => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.extend_selection_up();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::FindReplaceModeAccept => {}
-                ClientAction::FindReplaceModeBackspace => {
-                    //if ui.util_bar_alternate_focused(){
-                    //    ui.util_bar_alternate_mut().backspace();
-                    //}else{
-                    //    ui.util_bar_mut().backspace();
-                    //}
-
-                    //ui.util_bar_mut().scroll();
-                    //ui.util_bar_alternate_mut().scroll();
-
-                    //run text validity check
-                    //if let Some(doc) = editor.document(){
-                    //    if !doc.lines_as_single_string().contains(&ui.util_bar().text()){
-                    //        ui.util_bar_mut().set_text_is_valid(false);
-                    //    }else{
-                    //        ui.util_bar_mut().set_text_is_valid(true);
-                    //    }
-                    //}
-                }
-                ClientAction::FindReplaceModeDelete => {
-                    //if ui.util_bar_alternate_focused(){
-                    //    ui.util_bar_alternate_mut().delete();
-                    //}else{
-                    //    ui.util_bar_mut().delete();
-                    //}
-
-                    //ui.util_bar_mut().scroll();
-                    //ui.util_bar_alternate_mut().scroll();
-
-                    //run text validity check
-                    //if let Some(doc) = editor.document(){
-                    //    if !doc.lines_as_single_string().contains(&ui.util_bar().text()){
-                    //        ui.util_bar_mut().set_text_is_valid(false);
-                    //    }else{
-                    //        ui.util_bar_mut().set_text_is_valid(true);
-                    //    }
-                    //}
-                }
-                ClientAction::FindReplaceModeExit => {
-                    //ui.util_bar_mut().clear();
-                    //ui.util_bar_alternate_mut().clear();
-                    //ui.util_bar_mut().set_offset(0);
-                    //ui.util_bar_alternate_mut().set_offset(0);
-                    //ui.set_util_bar_alternate_focused(false);
-                    //app.set_mode(Mode::Insert);
-                }
-                ClientAction::FindReplaceModeInsertChar(_) => {
-                    //if ui.util_bar_alternate_focused(){
-                    //    ui.util_bar_alternate_mut().insert_char(c);
-                    //}else{
-                    //    ui.util_bar_mut().insert_char(c);
-                    //}
-
-                    //ui.util_bar_mut().scroll();
-                    //ui.util_bar_alternate_mut().scroll();
-
-                    //run text validity check
-                    //if let Some(doc) = editor.document(){
-                    //    if !doc.lines_as_single_string().contains(&ui.util_bar().text()){
-                    //        ui.util_bar_mut().set_text_is_valid(false);
-                    //    }else{
-                    //        ui.util_bar_mut().set_text_is_valid(true);
-                    //    }
-                    //}
-                }
-                ClientAction::FindReplaceModeNextInstance => {}
-                ClientAction::FindReplaceModePreviousInstance => {}
-                ClientAction::FindReplaceModeMoveCursorLeft => {
-                    //if ui.util_bar_alternate_focused(){
-                    //    ui.util_bar_alternate_mut().move_cursor_left();
-                    //}else{
-                    //    ui.util_bar_mut().move_cursor_left();
-                    //}
-
-                    //ui.util_bar_mut().scroll();
-                    //ui.util_bar_alternate_mut().scroll();
-                }
-                ClientAction::FindReplaceModeMoveCursorRight => {
-                    //if ui.util_bar_alternate_focused(){
-                    //    ui.util_bar_alternate_mut().move_cursor_right();
-                    //}else{
-                    //    ui.util_bar_mut().move_cursor_right();
-                    //}
-
-                    //ui.util_bar_mut().scroll();
-                    //ui.util_bar_alternate_mut().scroll();
-                }
-                ClientAction::FindReplaceModeMoveCursorLineEnd => {
-                    //if ui.util_bar_alternate_focused(){
-                    //    ui.util_bar_alternate_mut().move_cursor_end();
-                    //}else{
-                    //    ui.util_bar_mut().move_cursor_end();
-                    //}
-
-                    //ui.util_bar_mut().scroll();
-                    //ui.util_bar_alternate_mut().scroll();
-                }
-                ClientAction::FindReplaceModeMoveCursorLineStart => {
-                    //if ui.util_bar_alternate_focused(){
-                    //    ui.util_bar_alternate_mut().move_cursor_home();
-                    //}else{
-                    //    ui.util_bar_mut().move_cursor_home();
-                    //}
-
-                    //ui.util_bar_mut().scroll();
-                    //ui.util_bar_alternate_mut().scroll();
-                }
-                ClientAction::FindReplaceModeSwitchUtilBarFocus => {
-                    //ui.set_util_bar_alternate_focused(!ui.util_bar_alternate_focused());
-                }
-                ClientAction::GotoModeAccept => {
-                    //if let Ok(line_number) = ui.util_bar().text().parse::<usize>(){
-                    //    if let Some(doc) = editor.document_mut(){
-                    //        if doc.go_to(line_number.saturating_sub(1)).is_ok(){
-                    //            ui.util_bar_mut().clear();
-                    //            ui.util_bar_mut().set_offset(0);
-                    //            app.set_mode(Mode::Insert);
-                    //            ui.scroll(editor);
-                    //        }
-                    //    }
-                    //}
-                }
-                ClientAction::GotoModeBackspace => {
-                    //ui.util_bar_mut().backspace();
-                    //ui.util_bar_mut().scroll();
-
-                    // run text validity check
-                    //let mut is_numeric = true;
-                    //for grapheme in ui.util_bar().text().chars(){ // .graphemes(true)?
-                    //    if !grapheme.is_ascii_digit(){
-                    //        is_numeric = false;
-                    //    }
-                    //}
-                    //let exceeds_doc_length = match ui.util_bar().text().parse::<usize>(){
-                    //    Ok(line_number) => {
-                    //        if let Some(doc) = editor.document(){
-                    //            line_number > doc.len()
-                    //        }else{true}
-                    //    }
-                    //    Err(_) => false
-                    //};
-                    //if !is_numeric || exceeds_doc_length{
-                    //    ui.util_bar_mut().set_text_is_valid(false);
-                    //}else{
-                    //    ui.util_bar_mut().set_text_is_valid(true);
-                    //}
-                }
-                ClientAction::GotoModeDelete => {
-                    //ui.util_bar_mut().delete();
-                    //ui.util_bar_mut().scroll();
-
-                    // run text validity check
-                    //let mut is_numeric = true;
-                    //for grapheme in ui.util_bar().text().chars(){ // .graphemes(true)?
-                    //    if !grapheme.is_ascii_digit(){
-                    //        is_numeric = false;
-                    //    }
-                    //}
-                    //let exceeds_doc_length = match ui.util_bar().text().parse::<usize>(){
-                    //    Ok(line_number) => {
-                    //        if let Some(doc) = editor.document(){
-                    //            line_number > doc.len()
-                    //        }else{true}
-                    //    }
-                    //    Err(_) => false
-                    //};
-                    //if !is_numeric || exceeds_doc_length{
-                    //    ui.util_bar_mut().set_text_is_valid(false);
-                    //}else{
-                    //    ui.util_bar_mut().set_text_is_valid(true);
-                    //}
-                }
-                ClientAction::GotoModeExit => {
-                    //ui.util_bar_mut().clear();
-                    //ui.util_bar_mut().set_offset(0);
-                    //app.set_mode(Mode::Insert);
-                }
-                ClientAction::GotoModeInsertChar(_) => {
-                    //ui.util_bar_mut().insert_char(c);
-                    //ui.util_bar_mut().scroll();
-
-                    // run text validity check
-                    //let mut is_numeric = true;
-                    //for grapheme in ui.util_bar().text().chars(){ // .graphemes(true)?
-                    //    if !grapheme.is_ascii_digit(){
-                    //        is_numeric = false;
-                    //    }
-                    //}
-                    //let exceeds_doc_length = match ui.util_bar().text().parse::<usize>(){
-                    //    Ok(line_number) => {
-                    //        if let Some(doc) = editor.document(){
-                    //            line_number > doc.len()
-                    //        }else{true}
-                    //    }
-                    //    Err(_) => false
-                    //};
-                    //if !is_numeric || exceeds_doc_length{
-                    //    ui.util_bar_mut().set_text_is_valid(false);
-                    //}else{
-                    //    ui.util_bar_mut().set_text_is_valid(true);
-                    //}
-                }
-                ClientAction::GotoModeMoveCursorLeft => {
-                    //ui.util_bar_mut().move_cursor_left();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::GotoModeMoveCursorLineEnd => {
-                    //ui.util_bar_mut().move_cursor_end();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::GotoModeMoveCursorLineStart => {
-                    //ui.util_bar_mut().move_cursor_home();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::GotoModeMoveCursorRight => {
-                    //ui.util_bar_mut().move_cursor_right();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::IncrementFocusedDocument => {
-                    //editor.increment_focused_document();
-                    //ui.scroll(editor);
-                }
-                ClientAction::InsertChar(_) => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.insert_char(c);
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::InsertNewline => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.enter();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::InsertTab => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.tab();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorDocumentEnd => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_document_end();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorDocumentStart => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_document_start();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorDown => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_down();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorLeft => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_left();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorLineEnd => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_end();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorLineStart => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_home();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorRight => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_right();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorPageUp => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_page_up(ui.document_rect().height as usize);
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorPageDown => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_page_down(ui.document_rect().height as usize);
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorUp => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.move_cursor_up();
-                    //}
-                    //ui.scroll(editor);
-                }
-                ClientAction::MoveCursorWordStart => {}
-                ClientAction::MoveCursorWordEnd => {}
-                ClientAction::NewDocument => {
-                    //editor.new_document();
-                    //ui.scroll(editor);
-                }
-                ClientAction::NoOp => {}
-                ClientAction::OpenNewTerminalWindow => {
-                    //open new terminal window at current working directory
-                    Command::new("alacritty")
-                        .spawn()
-                        .expect("failed to spawn new terminal at current directory");
-                }
-                ClientAction::Quit => {
-                    //let mut modified = false;
-                    //for doc in editor.documents(){
-                    //    if doc.is_modified(){
-                    //        modified = true;
-                    //    }
-                    //}
-                    //if modified{
-                    //    app.set_mode(Mode::Warning(WarningKind::OpenFileIsModified));
-                    //}else{
-                    //    app.set_should_quit(true);
-                    //}
-                }
-                ClientAction::QuitIgnoringChanges => {
-                    app.set_should_quit(true);
-                    //stream.shutdown(std::net::Shutdown::Both).unwrap();
-                    // send server a close action
-                    let server_action = ServerAction::CloseConnection;
-                    let serialized_server_action = ron::to_string(&server_action)?;
-                    match stream.write(serialized_server_action.as_bytes()){
-                        Ok(bytes_written) => {
-                            if bytes_written == 0{} else {}
-                        }
-                        Err(e) => {return Err(Box::new(e));}
-                    }
-                    stream.flush()?;
-                }
-                ClientAction::Save => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    if doc.file_name().is_none(){
-                    //        app.set_mode(Mode::SaveAs);
-                    //    }
-                    //    else{
-                    //        doc.save()?;
-                    //    }
-                    //}
-                }
-                ClientAction::SaveAsModeAccept => {
-                    //if let Some(doc) = editor.document_mut(){
-                    //    doc.set_file_name(Some(ui.util_bar().text().to_string()));
-                    //    if doc.save().is_err(){
-                    //        doc.set_file_name(None);
-                    //        app.set_mode(Mode::Warning(WarningKind::FileSaveFailed));
-                    //        return Ok(());
-                    //    }
-                    //    app.set_mode(Mode::Insert);
-                    //    return Ok(());
-                    //}
-                }
-                ClientAction::SaveAsModeBackspace => {
-                    //ui.util_bar_mut().backspace();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::SaveAsModeClear => {
-                    //ui.util_bar_mut().clear();
-                    //ui.util_bar_mut().set_offset(0);
-                    //app.set_mode(Mode::Insert);
-                }
-                ClientAction::SaveAsModeDelete => {
-                    //ui.util_bar_mut().delete();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::SaveAsModeInsertChar(_) => {
-                    //ui.util_bar_mut().insert_char(c);
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::SaveAsModeMoveCursorLeft => {
-                    //ui.util_bar_mut().move_cursor_left();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::SaveAsModeMoveCursorLineEnd => {
-                    //ui.util_bar_mut().move_cursor_end();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::SaveAsModeMoveCursorLineStart => {
-                    //ui.util_bar_mut().move_cursor_home();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::SaveAsModeMoveCursorRight => {
-                    //ui.util_bar_mut().move_cursor_right();
-                    //ui.util_bar_mut().scroll();
-                }
-                ClientAction::SetModeCommand => {app.set_mode(Mode::Command)}
-                ClientAction::SetModeFindReplace => {app.set_mode(Mode::FindReplace)}
-                ClientAction::SetModeGoto => {app.set_mode(Mode::Goto)}
-                ClientAction::WarningModeExit => {app.set_mode(Mode::Insert)}
-            }
+            // perform actions
+            perform_client_action(app, ui, stream, action)?;
         },
         event::Event::Resize(x, y) => {
             ui.set_terminal_size(x, y);
@@ -724,14 +212,608 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
             //ui.util_bar_mut().scroll();
             //ui.util_bar_alternate_mut().scroll();
 
-            // let server know of change
-            let action = ServerAction::UpdateClientView(ui.document_rect().width, ui.document_rect().height);
+            // let server know of change. this somehow seems to work without calling RequestClientViewText. not sure how. magic?
+            let action = ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height);
             send_action_to_server(stream, action)?;
             let response = read_server_response(stream)?;
-            crate::events::process_server_response(response, ui);
+            process_server_response(response, ui);
+            
+            // send RequestClientViewText to server?
+            let action = ServerAction::RequestClientViewText;
+            send_action_to_server(stream, action)?;
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+            //
         }
         _ => {}
     }
+    Ok(())
+}
+
+pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream: &mut TcpStream, action: ClientAction) -> Result<(), Box<dyn Error>>{
+    match action{
+        ClientAction::Backspace => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.backspace();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::CloseDocument => {
+            //if let Some(doc) = editor.document(){
+            //    if doc.is_modified(){
+            //        app.set_mode(Mode::Warning(WarningKind::FocusedFileIsModified));
+            //    }else{
+            //        editor.close_document();
+            //    }
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::CloseDocumentIgnoringChanges => {
+            //editor.close_document();
+            //app.set_mode(Mode::Insert);
+            //ui.scroll(editor);
+        }
+        ClientAction::CollapseSelectionCursor => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.collapse_selection_cursors();
+            //}
+            //app.set_mode(Mode::Insert);
+            //ui.scroll(editor); // this needed here?
+        }
+        ClientAction::CommandModeAccept => {
+            //if parse_command(editor, ui.util_bar().text()).is_ok(){
+            //if parse_command(ui.util_bar().text()).is_ok(){
+            //    ui.util_bar_mut().clear();
+            //    ui.util_bar_mut().set_offset(0);
+            //    app.set_mode(Mode::Insert);
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::CommandModeBackspace => {
+            //ui.util_bar_mut().backspace();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::CommandModeDelete => {
+            //ui.util_bar_mut().delete();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::CommandModeExit => {
+            //ui.util_bar_mut().clear();
+            //ui.util_bar_mut().set_offset(0);
+            //app.set_mode(Mode::Insert);
+        }
+        ClientAction::CommandModeInsertChar(_) => {
+            //ui.util_bar_mut().insert_char(c);
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::CommandModeMoveCursorLeft => {
+            //ui.util_bar_mut().move_cursor_left();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::CommandModeMoveCursorLineEnd => {
+            //ui.util_bar_mut().move_cursor_end();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::CommandModeMoveCursorLineStart => {
+            //ui.util_bar_mut().move_cursor_home();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::CommandModeMoveCursorRight => {
+            //ui.util_bar_mut().move_cursor_right();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::DecrementFocusedDocument => {
+            //editor.decrement_focused_document();
+            //ui.scroll(editor);
+        }
+        ClientAction::Delete => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.delete();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::DisplayLineNumbers => {/*ui.set_display_line_numbers(!ui.display_line_numbers())*/}
+        ClientAction::DisplayStatusBar => {/*ui.set_display_status_bar(!ui.display_status_bar())*/}
+        ClientAction::ExtendSelectionDown => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.extend_selection_down();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::ExtendSelectionLeft => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.extend_selection_left();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::ExtendSelectionLineEnd => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.extend_selection_end();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::ExtendSelectionLineStart => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.extend_selection_home();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::ExtendSelectionRight => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.extend_selection_right();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::ExtendSelectionUp => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.extend_selection_up();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::FindReplaceModeAccept => {}
+        ClientAction::FindReplaceModeBackspace => {
+            //if ui.util_bar_alternate_focused(){
+            //    ui.util_bar_alternate_mut().backspace();
+            //}else{
+            //    ui.util_bar_mut().backspace();
+            //}
+
+            //ui.util_bar_mut().scroll();
+            //ui.util_bar_alternate_mut().scroll();
+
+            //run text validity check
+            //if let Some(doc) = editor.document(){
+            //    if !doc.lines_as_single_string().contains(&ui.util_bar().text()){
+            //        ui.util_bar_mut().set_text_is_valid(false);
+            //    }else{
+            //        ui.util_bar_mut().set_text_is_valid(true);
+            //    }
+            //}
+        }
+        ClientAction::FindReplaceModeDelete => {
+            //if ui.util_bar_alternate_focused(){
+            //    ui.util_bar_alternate_mut().delete();
+            //}else{
+            //    ui.util_bar_mut().delete();
+            //}
+
+            //ui.util_bar_mut().scroll();
+            //ui.util_bar_alternate_mut().scroll();
+
+            //run text validity check
+            //if let Some(doc) = editor.document(){
+            //    if !doc.lines_as_single_string().contains(&ui.util_bar().text()){
+            //        ui.util_bar_mut().set_text_is_valid(false);
+            //    }else{
+            //        ui.util_bar_mut().set_text_is_valid(true);
+            //    }
+            //}
+        }
+        ClientAction::FindReplaceModeExit => {
+            //ui.util_bar_mut().clear();
+            //ui.util_bar_alternate_mut().clear();
+            //ui.util_bar_mut().set_offset(0);
+            //ui.util_bar_alternate_mut().set_offset(0);
+            //ui.set_util_bar_alternate_focused(false);
+            //app.set_mode(Mode::Insert);
+        }
+        ClientAction::FindReplaceModeInsertChar(_) => {
+            //if ui.util_bar_alternate_focused(){
+            //    ui.util_bar_alternate_mut().insert_char(c);
+            //}else{
+            //    ui.util_bar_mut().insert_char(c);
+            //}
+
+            //ui.util_bar_mut().scroll();
+            //ui.util_bar_alternate_mut().scroll();
+
+            //run text validity check
+            //if let Some(doc) = editor.document(){
+            //    if !doc.lines_as_single_string().contains(&ui.util_bar().text()){
+            //        ui.util_bar_mut().set_text_is_valid(false);
+            //    }else{
+            //        ui.util_bar_mut().set_text_is_valid(true);
+            //    }
+            //}
+        }
+        ClientAction::FindReplaceModeNextInstance => {}
+        ClientAction::FindReplaceModePreviousInstance => {}
+        ClientAction::FindReplaceModeMoveCursorLeft => {
+            //if ui.util_bar_alternate_focused(){
+            //    ui.util_bar_alternate_mut().move_cursor_left();
+            //}else{
+            //    ui.util_bar_mut().move_cursor_left();
+            //}
+
+            //ui.util_bar_mut().scroll();
+            //ui.util_bar_alternate_mut().scroll();
+        }
+        ClientAction::FindReplaceModeMoveCursorRight => {
+            //if ui.util_bar_alternate_focused(){
+            //    ui.util_bar_alternate_mut().move_cursor_right();
+            //}else{
+            //    ui.util_bar_mut().move_cursor_right();
+            //}
+
+            //ui.util_bar_mut().scroll();
+            //ui.util_bar_alternate_mut().scroll();
+        }
+        ClientAction::FindReplaceModeMoveCursorLineEnd => {
+            //if ui.util_bar_alternate_focused(){
+            //    ui.util_bar_alternate_mut().move_cursor_end();
+            //}else{
+            //    ui.util_bar_mut().move_cursor_end();
+            //}
+
+            //ui.util_bar_mut().scroll();
+            //ui.util_bar_alternate_mut().scroll();
+        }
+        ClientAction::FindReplaceModeMoveCursorLineStart => {
+            //if ui.util_bar_alternate_focused(){
+            //    ui.util_bar_alternate_mut().move_cursor_home();
+            //}else{
+            //    ui.util_bar_mut().move_cursor_home();
+            //}
+
+            //ui.util_bar_mut().scroll();
+            //ui.util_bar_alternate_mut().scroll();
+        }
+        ClientAction::FindReplaceModeSwitchUtilBarFocus => {
+            //ui.set_util_bar_alternate_focused(!ui.util_bar_alternate_focused());
+        }
+        ClientAction::GotoModeAccept => {
+            //if let Ok(line_number) = ui.util_bar().text().parse::<usize>(){
+            //    if let Some(doc) = editor.document_mut(){
+            //        if doc.go_to(line_number.saturating_sub(1)).is_ok(){
+            //            ui.util_bar_mut().clear();
+            //            ui.util_bar_mut().set_offset(0);
+            //            app.set_mode(Mode::Insert);
+            //            ui.scroll(editor);
+            //        }
+            //    }
+            //}
+        }
+        ClientAction::GotoModeBackspace => {
+            //ui.util_bar_mut().backspace();
+            //ui.util_bar_mut().scroll();
+
+            // run text validity check
+            //let mut is_numeric = true;
+            //for grapheme in ui.util_bar().text().chars(){ // .graphemes(true)?
+            //    if !grapheme.is_ascii_digit(){
+            //        is_numeric = false;
+            //    }
+            //}
+            //let exceeds_doc_length = match ui.util_bar().text().parse::<usize>(){
+            //    Ok(line_number) => {
+            //        if let Some(doc) = editor.document(){
+            //            line_number > doc.len()
+            //        }else{true}
+            //    }
+            //    Err(_) => false
+            //};
+            //if !is_numeric || exceeds_doc_length{
+            //    ui.util_bar_mut().set_text_is_valid(false);
+            //}else{
+            //    ui.util_bar_mut().set_text_is_valid(true);
+            //}
+        }
+        ClientAction::GotoModeDelete => {
+            //ui.util_bar_mut().delete();
+            //ui.util_bar_mut().scroll();
+
+            // run text validity check
+            //let mut is_numeric = true;
+            //for grapheme in ui.util_bar().text().chars(){ // .graphemes(true)?
+            //    if !grapheme.is_ascii_digit(){
+            //        is_numeric = false;
+            //    }
+            //}
+            //let exceeds_doc_length = match ui.util_bar().text().parse::<usize>(){
+            //    Ok(line_number) => {
+            //        if let Some(doc) = editor.document(){
+            //            line_number > doc.len()
+            //        }else{true}
+            //    }
+            //    Err(_) => false
+            //};
+            //if !is_numeric || exceeds_doc_length{
+            //    ui.util_bar_mut().set_text_is_valid(false);
+            //}else{
+            //    ui.util_bar_mut().set_text_is_valid(true);
+            //}
+        }
+        ClientAction::GotoModeExit => {
+            //ui.util_bar_mut().clear();
+            //ui.util_bar_mut().set_offset(0);
+            //app.set_mode(Mode::Insert);
+        }
+        ClientAction::GotoModeInsertChar(_) => {
+            //ui.util_bar_mut().insert_char(c);
+            //ui.util_bar_mut().scroll();
+
+            // run text validity check
+            //let mut is_numeric = true;
+            //for grapheme in ui.util_bar().text().chars(){ // .graphemes(true)?
+            //    if !grapheme.is_ascii_digit(){
+            //        is_numeric = false;
+            //    }
+            //}
+            //let exceeds_doc_length = match ui.util_bar().text().parse::<usize>(){
+            //    Ok(line_number) => {
+            //        if let Some(doc) = editor.document(){
+            //            line_number > doc.len()
+            //        }else{true}
+            //    }
+            //    Err(_) => false
+            //};
+            //if !is_numeric || exceeds_doc_length{
+            //    ui.util_bar_mut().set_text_is_valid(false);
+            //}else{
+            //    ui.util_bar_mut().set_text_is_valid(true);
+            //}
+        }
+        ClientAction::GotoModeMoveCursorLeft => {
+            //ui.util_bar_mut().move_cursor_left();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::GotoModeMoveCursorLineEnd => {
+            //ui.util_bar_mut().move_cursor_end();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::GotoModeMoveCursorLineStart => {
+            //ui.util_bar_mut().move_cursor_home();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::GotoModeMoveCursorRight => {
+            //ui.util_bar_mut().move_cursor_right();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::IncrementFocusedDocument => {
+            //editor.increment_focused_document();
+            //ui.scroll(editor);
+        }
+        ClientAction::InsertChar(_) => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.insert_char(c);
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::InsertNewline => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.enter();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::InsertTab => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.tab();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorDocumentEnd => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_document_end();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorDocumentStart => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_document_start();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorDown => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_down();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorLeft => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_left();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorLineEnd => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_end();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorLineStart => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_home();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorRight => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_right();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorPageUp => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_page_up(ui.document_rect().height as usize);
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorPageDown => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_page_down(ui.document_rect().height as usize);
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorUp => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.move_cursor_up();
+            //}
+            //ui.scroll(editor);
+        }
+        ClientAction::MoveCursorWordStart => {}
+        ClientAction::MoveCursorWordEnd => {}
+        ClientAction::NewDocument => {
+            //editor.new_document();
+            //ui.scroll(editor);
+        }
+        ClientAction::NoOp => {}
+        ClientAction::OpenNewTerminalWindow => {
+            //open new terminal window at current working directory
+            Command::new("alacritty")
+                .spawn()
+                .expect("failed to spawn new terminal at current directory");
+        }
+        ClientAction::Quit => {
+            //let mut modified = false;
+            //for doc in editor.documents(){
+            //    if doc.is_modified(){
+            //        modified = true;
+            //    }
+            //}
+            //if modified{
+            //    app.set_mode(Mode::Warning(WarningKind::OpenFileIsModified));
+            //}else{
+            //    app.set_should_quit(true);
+            //}
+        }
+        ClientAction::QuitIgnoringChanges => {
+            app.set_should_quit(true);
+            //stream.shutdown(std::net::Shutdown::Both).unwrap();
+            // send server a close action
+            let server_action = ServerAction::CloseConnection;
+            let serialized_server_action = ron::to_string(&server_action)?;
+            match stream.write(serialized_server_action.as_bytes()){
+                Ok(bytes_written) => {
+                    if bytes_written == 0{} else {}
+                }
+                Err(e) => {return Err(Box::new(e));}
+            }
+            stream.flush()?;
+        }
+        ClientAction::Save => {
+            //if let Some(doc) = editor.document_mut(){
+            //    if doc.file_name().is_none(){
+            //        app.set_mode(Mode::SaveAs);
+            //    }
+            //    else{
+            //        doc.save()?;
+            //    }
+            //}
+        }
+        ClientAction::SaveAsModeAccept => {
+            //if let Some(doc) = editor.document_mut(){
+            //    doc.set_file_name(Some(ui.util_bar().text().to_string()));
+            //    if doc.save().is_err(){
+            //        doc.set_file_name(None);
+            //        app.set_mode(Mode::Warning(WarningKind::FileSaveFailed));
+            //        return Ok(());
+            //    }
+            //    app.set_mode(Mode::Insert);
+            //    return Ok(());
+            //}
+        }
+        ClientAction::SaveAsModeBackspace => {
+            //ui.util_bar_mut().backspace();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::SaveAsModeClear => {
+            //ui.util_bar_mut().clear();
+            //ui.util_bar_mut().set_offset(0);
+            //app.set_mode(Mode::Insert);
+        }
+        ClientAction::SaveAsModeDelete => {
+            //ui.util_bar_mut().delete();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::SaveAsModeInsertChar(_) => {
+            //ui.util_bar_mut().insert_char(c);
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::SaveAsModeMoveCursorLeft => {
+            //ui.util_bar_mut().move_cursor_left();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::SaveAsModeMoveCursorLineEnd => {
+            //ui.util_bar_mut().move_cursor_end();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::SaveAsModeMoveCursorLineStart => {
+            //ui.util_bar_mut().move_cursor_home();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::SaveAsModeMoveCursorRight => {
+            //ui.util_bar_mut().move_cursor_right();
+            //ui.util_bar_mut().scroll();
+        }
+        ClientAction::ScrollViewDown(amount) => {
+            // send scroll view action to server
+            let action = ServerAction::ScrollClientViewDown(amount);
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+            
+            // request client view text
+            let action = ServerAction::RequestClientViewText;
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+
+            //TODO: update client cursor position
+        }
+        ClientAction::ScrollViewLeft(amount) => {
+            // send scroll view action to server
+            let action = ServerAction::ScrollClientViewLeft(amount);
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+            
+            // request client view text
+            let action = ServerAction::RequestClientViewText;
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+        }
+        ClientAction::ScrollViewRight(amount) => {
+            // send scroll view action to server
+            let action = ServerAction::ScrollClientViewRight(amount);
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+            
+            // request client view text
+            let action = ServerAction::RequestClientViewText;
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+        }
+        ClientAction::ScrollViewUp(amount) => {
+            // send scroll view action to server
+            let action = ServerAction::ScrollClientViewUp(amount);
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+            
+            // request client view text
+            let action = ServerAction::RequestClientViewText;
+            send_action_to_server(stream, action)?;
+            // read response
+            let response = read_server_response(stream)?;
+            process_server_response(response, ui);
+        }
+        ClientAction::SetModeCommand => {app.set_mode(Mode::Command)}
+        ClientAction::SetModeFindReplace => {app.set_mode(Mode::FindReplace)}
+        ClientAction::SetModeGoto => {app.set_mode(Mode::Goto)}
+        ClientAction::WarningModeExit => {app.set_mode(Mode::Insert)}
+    }
+
     Ok(())
 }
 

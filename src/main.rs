@@ -69,9 +69,7 @@ fn run(
             return Ok(());
         }
         ui.render(terminal, app)?;
-        events::process_event(app, ui, stream)?; // send &mut TcpStream as arg here?
-        // read response from server
-        // act on response
+        events::process_event(app, ui, stream)?;
     }
 }
 
@@ -133,7 +131,7 @@ fn open_file_if_supplied(stream: &mut TcpStream, file: String, ui: &mut UserInte
     events::process_server_response(response, ui);
 
     //UPDATE CLIENT VIEW SIZE
-    let action = ServerAction::UpdateClientView(ui.document_rect().width, ui.document_rect().height);
+    let action = ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height);
     send_action_to_server(stream, action)?;
     let response = read_server_response(stream)?;
     events::process_server_response(response, ui);
@@ -143,6 +141,10 @@ fn open_file_if_supplied(stream: &mut TcpStream, file: String, ui: &mut UserInte
     send_action_to_server(stream, action)?;
     let response = read_server_response(stream)?;
     events::process_server_response(response, ui);
+
+    //REQUEST CLIENT CURSOR POSITION
+        //cursor_position.x - client_view.horizontal_start
+        //cursor_position.y - client_view.vertical_start
 
     Ok(())
 }
