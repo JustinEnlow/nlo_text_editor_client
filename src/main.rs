@@ -7,14 +7,14 @@
         // SteadyUnderScore
         // BlinkingBar
         // SteadyBar
-const CURSOR_STYLE: cursor::SetCursorStyle = cursor::SetCursorStyle::BlinkingBar;
+const CURSOR_STYLE: cursor::SetCursorStyle = cursor::SetCursorStyle::SteadyBlock;
 
 
 
 use nlo_text_editor_client::application::AppState;
 use nlo_text_editor_client::ui::UserInterface;
 use nlo_text_editor_client::events;
-use nlo_text_editor_client::{send_action_to_server, read_server_response};
+use nlo_text_editor_client::do_ipc_things;
 use nlo_text_editor_server::ServerAction;
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use crossterm::{
@@ -124,27 +124,21 @@ fn restore_terminal(
 
 fn open_file_if_supplied(stream: &mut TcpStream, file: String, ui: &mut UserInterface) -> Result<(), Box<dyn Error>>{
     //OPEN FILE
-    let action = ServerAction::OpenFile(file);
-    send_action_to_server(stream, action)?;
-    let response = read_server_response(stream)?;
+    let response = do_ipc_things(stream, ServerAction::OpenFile(file))?;
     ui.set_document_open(true);
     events::process_server_response(response, ui);
 
     //UPDATE CLIENT VIEW SIZE
-    let action = ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height);
-    send_action_to_server(stream, action)?;
-    let response = read_server_response(stream)?;
+    let response = do_ipc_things(stream, ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height))?;
     events::process_server_response(response, ui);
 
     //REQUEST CLIENT VIEW TEXT
-    let action = ServerAction::RequestClientViewText;
-    send_action_to_server(stream, action)?;
-    let response = read_server_response(stream)?;
+    let response = do_ipc_things(stream, ServerAction::RequestClientViewText)?;
     events::process_server_response(response, ui);
 
     //REQUEST CLIENT CURSOR POSITION
-        //cursor_position.x - client_view.horizontal_start
-        //cursor_position.y - client_view.vertical_start
+    let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+    events::process_server_response(response, ui);
 
     Ok(())
 }

@@ -21,7 +21,7 @@ pub struct UserInterface{
     document_rect: Rect,
     text_in_view: String,
     document_open: bool,
-    doc_to_screen_cursor_pos: Option<Position>,
+    client_cursor_position: Option<Position>,
 }
 impl UserInterface{
     pub fn new(terminal_size: Rect) -> Self{
@@ -31,7 +31,7 @@ impl UserInterface{
             document_rect: Rect::default(),
             text_in_view: String::new(),
             document_open: false,
-            doc_to_screen_cursor_pos: None,
+            client_cursor_position: None,
         }
     }
     pub fn set_terminal_size(&mut self, width: u16, height: u16){
@@ -49,6 +49,10 @@ impl UserInterface{
 
     pub fn set_document_open(&mut self, val: bool){
         self.document_open = val;
+    }
+
+    pub fn set_client_cursor_position(&mut self, position: Option<Position>){
+        self.client_cursor_position = position;
     }
 
 
@@ -104,7 +108,7 @@ impl UserInterface{
                         //            .saturating_sub(self.offset.y()) as u16
                         //    )
                         //}
-                        if let Some(pos) = self.doc_to_screen_cursor_pos{
+                        if let Some(pos) = self.client_cursor_position{
                             frame.set_cursor(pos.x() as u16, pos.y() as u16)
                         }
                     }
