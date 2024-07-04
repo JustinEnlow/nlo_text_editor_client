@@ -1,5 +1,4 @@
-use crate::application::{AppState, Mode, WarningKind};
-//use crate::do_ipc_things;
+use crate::application::{Mode, WarningKind};
 use nlo_text_editor_server::Position;
 use std::error::Error;
 use ratatui::Terminal;
@@ -250,7 +249,7 @@ impl UserInterface{
 
 
     //pub fn update_layouts(&mut self, app: &AppState, editor: &Editor){
-    pub fn update_layouts(&mut self, app: &AppState){
+    pub fn update_layouts(&mut self, /*app: &AppState*/mode: Mode){
         // layout of viewport rect (the whole terminal screen)
         let viewport_rect = Layout::default()
             .direction(Direction::Vertical)
@@ -262,7 +261,7 @@ impl UserInterface{
                     Constraint::Length(if self.display_status_bar{1}else{0}),
                     // util(goto/find/command) bar rect height
                     Constraint::Length(
-                        match app.mode(){
+                        match mode{
                             Mode::SaveAs 
                             | Mode::Warning(_) 
                             | Mode::Goto 
@@ -325,7 +324,7 @@ impl UserInterface{
                 vec![
                     // util bar prompt width
                     Constraint::Length(
-                        match app.mode(){
+                        match mode{
                             Mode::Goto => GOTO_PROMPT.len() as u16,
                             Mode::FindReplace => FIND_PROMPT.len() as u16,
                             Mode::SaveAs => SAVE_AS_PROMPT.len() as u16,
@@ -335,7 +334,7 @@ impl UserInterface{
                     ),
                     // util bar rect width
                     Constraint::Length(
-                        match app.mode(){
+                        match mode{
                             Mode::Warning(_) | Mode::Insert => viewport_rect[2].width,
                             Mode::SaveAs => viewport_rect[2].width - SAVE_AS_PROMPT.len() as u16,
                             Mode::Goto => viewport_rect[2].width - GOTO_PROMPT.len() as u16,
@@ -345,14 +344,14 @@ impl UserInterface{
                     ),
                     // util bar alternate prompt width
                     Constraint::Length(
-                        match app.mode(){
+                        match mode{
                             Mode::FindReplace => REPLACE_PROMPT.len() as u16,
                             _ => 0
                         }
                     ),
                     // util bar alternate rect width
                     Constraint::Length(
-                        match app.mode(){
+                        match mode{
                             Mode::FindReplace => (viewport_rect[2].width / 2) - REPLACE_PROMPT.len() as u16,
                             _ => 0
                         }
@@ -373,7 +372,7 @@ impl UserInterface{
         self.util_bar_alternate_prompt_rect = util_rect[2];
         self.util_bar_alternate_rect = util_rect[3];
 
-        match app.mode(){
+        match mode{
             Mode::Command | Mode::SaveAs | Mode::Goto | Mode::FindReplace=> {
                 self.util_bar.set_widget_width(self.util_bar_rect.width);
                 self.util_bar_alternate.set_widget_width(self.util_bar_alternate_rect.width);
@@ -452,8 +451,8 @@ impl UserInterface{
             )
     }
 
-    pub fn util_bar_prompt_widget(&self, app: &AppState) -> Paragraph<'static>{
-        match app.mode(){
+    pub fn util_bar_prompt_widget(&self, mode: Mode) -> Paragraph<'static>{
+        match mode{
             Mode::Goto => Paragraph::new(GOTO_PROMPT),
             Mode::FindReplace => Paragraph::new(FIND_PROMPT),
             Mode::SaveAs => Paragraph::new(SAVE_AS_PROMPT),
@@ -462,8 +461,8 @@ impl UserInterface{
         }
     }
 
-    pub fn util_bar_widget(&self, app: &AppState) -> Paragraph<'static>{
-        match app.mode(){
+    pub fn util_bar_widget(&self, /*app: &AppState*/mode: Mode) -> Paragraph<'static>{
+        match mode{
             Mode::Goto | Mode::FindReplace => {
                 if self.util_bar.text_is_valid{
                     Paragraph::new(self.util_bar.text().to_string()).scroll((0, self.util_bar.offset()))
@@ -499,8 +498,8 @@ impl UserInterface{
         }
     }
 
-    pub fn util_bar_alternate_prompt_widget(&self, app: &AppState) -> Paragraph<'static>{
-        match app.mode(){
+    pub fn util_bar_alternate_prompt_widget(&self, /*app: &AppState*/mode: Mode) -> Paragraph<'static>{
+        match mode{
             Mode::FindReplace => {
                 Paragraph::new(REPLACE_PROMPT)
             },
@@ -508,8 +507,8 @@ impl UserInterface{
         }
     }
 
-    pub fn util_bar_alternate_widget(&self, app: &AppState) -> Paragraph<'static>{
-        match app.mode(){
+    pub fn util_bar_alternate_widget(&self, /*app: &AppState*/mode: Mode) -> Paragraph<'static>{
+        match mode{
             Mode::FindReplace => {
                 Paragraph::new(self.util_bar_alternate.text().to_string())
                     .scroll((0, self.util_bar_alternate.offset()))
@@ -520,9 +519,9 @@ impl UserInterface{
 
     // when in select mode, figure out how to change background color of text within cursor_head and cursor_anchor
     //pub fn render(&mut self, terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, app: &AppState, editor: &Editor) -> Result<(), Box<dyn Error>>{
-    pub fn render(&mut self, terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, app: &AppState) -> Result<(), Box<dyn Error>>{
+    pub fn render(&mut self, terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, mode: Mode/*app: &AppState*/) -> Result<(), Box<dyn Error>>{
         // testing calling this here, instead of from main.rs
-        self.update_layouts(app);
+        self.update_layouts(mode);
         //
         
         terminal.draw(
@@ -534,13 +533,13 @@ impl UserInterface{
                 frame.render_widget(self.status_bar_modified_indicator_widget(), self.status_bar_modified_indicator_rect);
                 frame.render_widget(self.status_bar_file_name_widget(), self.status_bar_file_name_rect);
                 frame.render_widget(self.status_bar_cursor_position_widget(), self.status_bar_cursor_position_rect);
-                frame.render_widget(self.util_bar_prompt_widget(app), self.util_bar_prompt_rect);
-                frame.render_widget(self.util_bar_widget(app), self.util_bar_rect);
-                frame.render_widget(self.util_bar_alternate_prompt_widget(app), self.util_bar_alternate_prompt_rect);
-                frame.render_widget(self.util_bar_alternate_widget(app), self.util_bar_alternate_rect);
+                frame.render_widget(self.util_bar_prompt_widget(mode), self.util_bar_prompt_rect);
+                frame.render_widget(self.util_bar_widget(mode), self.util_bar_rect);
+                frame.render_widget(self.util_bar_alternate_prompt_widget(mode), self.util_bar_alternate_prompt_rect);
+                frame.render_widget(self.util_bar_alternate_widget(mode), self.util_bar_alternate_rect);
 
                 // render cursor
-                match app.mode(){
+                match mode{
                     Mode::Insert => {
                         if let Some(pos) = self.client_cursor_position{
                             frame.set_cursor(
