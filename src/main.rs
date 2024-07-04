@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(file) = args.pop(){
-        ui.update_layouts(); //ensures we get the proper document rect size
+        ui.update_layouts(&mut app); //ensures we get the proper document rect size
         open_file_if_supplied(&mut stream, file, &mut ui)?;
     }
     
@@ -68,6 +68,10 @@ fn run(
         if app.should_quit(){
             return Ok(());
         }
+        // get values needed in render from server
+        //let response = do_ipc_things(stream, ServerAction::RequestDocumentModifiedStatus)?;
+        //process_server_response(response, ui);
+        //
         ui.render(terminal, app)?;
         events::process_event(app, ui, stream)?;
     }
@@ -129,11 +133,10 @@ fn open_file_if_supplied(stream: &mut TcpStream, file: String, ui: &mut UserInte
     events::process_server_response(response, ui);
 
     //UPDATE CLIENT VIEW SIZE
-    let response = do_ipc_things(stream, ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height))?;
-    events::process_server_response(response, ui);
-
-    //REQUEST CLIENT CURSOR POSITION
-    let response = do_ipc_things(stream, ServerAction::RequestClientCursorPosition)?;
+    let response = do_ipc_things(
+        stream, 
+        ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height)
+    )?;
     events::process_server_response(response, ui);
 
     Ok(())
