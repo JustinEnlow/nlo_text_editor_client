@@ -27,6 +27,14 @@ use crossterm::{
 use std::error::Error;
 use std::net::TcpStream;
 
+
+
+//Init: initializes and sets up environment(including loading plugins and setting options?)
+//Event Handling: listens for user input and system events(events can include keystrokes, mouse actions, and signals from the operating system)
+    //When an event occurs (e.g., a key is pressed), trigger the corresponding handler function or callback
+//Handler Execution: executes and performs the necessary actions based on the event
+    //(For example, if a user presses "Ctrl+S", the corresponding handler might save the current buffer to disk)
+//Redraw and Display: Updates display (or redraws the screen) to reflect any changes resulting from the event handling
 fn main() -> Result<(), Box<dyn Error>>{
     let (mut terminal, supports_keyboard_enhancement) = setup_terminal()?;
     let mut ui = UserInterface::new(terminal.size()?);
@@ -73,7 +81,8 @@ fn run(
         //process_server_response(response, ui);
         //
         ui.render(terminal, app)?;
-        events::process_event(app, ui, stream)?;
+        let action = events::handle_event(app)?;
+        events::perform_client_action(app, ui, stream, action)?;
     }
 }
 

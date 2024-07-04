@@ -57,6 +57,7 @@ pub enum ClientAction{
     MoveCursorWordStart,
     NoOp,
     QuitIgnoringChanges,
+    Resize(u16, u16),
     ScrollViewDown(usize),
     ScrollViewLeft(usize),
     ScrollViewRight(usize),
@@ -68,11 +69,10 @@ pub enum ClientAction{
 
 
 
-//pub fn process_event(app: &mut AppState, editor: &mut Editor, ui: &mut UserInterface) -> Result<(), Box<dyn Error>>{
-pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut TcpStream) -> Result<(), Box<dyn Error>>{
+pub fn handle_event(app: &mut AppState) -> Result<ClientAction, Box<dyn Error>>{
     match event::read()?{
         event::Event::Key(key_event) => {
-            let action = match (key_event, app.mode()){
+            Ok(match (key_event, app.mode()){
                 // Insert Mode
                 //(KeyEvent{modifiers: KeyModifiers::CONTROL | KeyModifiers::SHIFT, code, ..}, Mode::Insert) => {Action::}
                 //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::IncrementFocusedDocument}
@@ -164,24 +164,11 @@ pub fn process_event(app: &mut AppState, ui: &mut UserInterface, stream: &mut Tc
 
                 // unhandled keybinds
                 _ => {ClientAction::NoOp}
-            };
-
-            // perform actions
-            perform_client_action(app, ui, stream, action)?;
+            })
         },
-        event::Event::Resize(x, y) => {
-            ui.set_terminal_size(x, y);
-            ui.update_layouts(app);
-            //ui.scroll(editor);
-            ui.util_bar_mut().scroll();
-            ui.util_bar_alternate_mut().scroll();
-
-            let response = do_ipc_things(stream, ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height))?;
-            process_server_response(response, ui);
-        }
-        _ => {}
+        event::Event::Resize(x, y) => {Ok(ClientAction::Resize(x, y))}
+        _ => {Ok(ClientAction::NoOp)}
     }
-    Ok(())
 }
 
 pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream: &mut TcpStream, action: ClientAction) -> Result<(), Box<dyn Error>>{
@@ -544,6 +531,14 @@ pub fn perform_client_action(app: &mut AppState, ui: &mut UserInterface, stream:
                 Err(e) => {return Err(Box::new(e));}
             }
             stream.flush()?;
+        }
+        ClientAction::Resize(x, y) => {
+            ui.set_terminal_size(x, y);
+            ui.update_layouts(app);
+            ui.util_bar_mut().scroll();
+            ui.util_bar_alternate_mut().scroll();
+            let response = do_ipc_things(stream, ServerAction::UpdateClientViewSize(ui.document_rect().width, ui.document_rect().height))?;
+            process_server_response(response, ui);
         }
         ClientAction::ScrollViewDown(amount) => {
             let response = do_ipc_things(stream, ServerAction::ScrollClientViewDown(amount))?;
