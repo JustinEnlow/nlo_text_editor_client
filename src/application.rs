@@ -690,9 +690,10 @@ impl Application{
             }
             ServerResponse::ConnectionSucceeded => {}
             ServerResponse::Acknowledge => {}
-            ServerResponse::DisplayView(content, client_cursor_position, document_cursor_position) => {
+            ServerResponse::DisplayView(content, line_numbers, client_cursor_position, document_cursor_position) => {
                 //println!("Client received: {:#?}", content);
                 self.ui.set_text_in_view(content); //TODO: generate a client action instead of directly performing this
+                self.ui.set_line_numbers_in_view(line_numbers);
                 self.ui.set_client_cursor_position(client_cursor_position);
                 self.ui.set_document_cursor_position(document_cursor_position);
             }

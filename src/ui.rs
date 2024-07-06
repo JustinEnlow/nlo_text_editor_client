@@ -145,6 +145,7 @@ pub struct UserInterface{
     util_bar: UtilBar,
     util_bar_alternate: UtilBar,
     text_in_view: String,
+    line_numbers_in_view: String,
     document_open: bool,
     client_cursor_position: Option<Position>,
     document_length: usize,
@@ -171,6 +172,7 @@ impl UserInterface{
             util_bar: UtilBar::default(),
             util_bar_alternate: UtilBar::default(),
             text_in_view: String::new(),
+            line_numbers_in_view: String::new(),
             document_open: false,
             client_cursor_position: None,
             document_length: 0,
@@ -235,6 +237,9 @@ impl UserInterface{
     pub fn set_text_in_view(&mut self, text: String){
         self.text_in_view = text;
     }
+    pub fn set_line_numbers_in_view(&mut self, line_numbers: String){
+        self.line_numbers_in_view = line_numbers;
+    }
 
     pub fn document_open(&self) -> bool{
         self.document_open
@@ -248,8 +253,7 @@ impl UserInterface{
     }
 
 
-    //pub fn update_layouts(&mut self, app: &AppState, editor: &Editor){
-    pub fn update_layouts(&mut self, /*app: &AppState*/mode: Mode){
+    pub fn update_layouts(&mut self, mode: Mode){
         // layout of viewport rect (the whole terminal screen)
         let viewport_rect = Layout::default()
             .direction(Direction::Vertical)
@@ -384,16 +388,9 @@ impl UserInterface{
         }
     }
 
-    //TODO: Should we be generating line numbers in server?
     pub fn line_number_widget(&self) -> Paragraph<'static>{
-        let mut line_numbers = String::new();
-        for i in 0..self.document_length{
-            line_numbers.push_str(format!("{} \n", i+1).as_str())
-        }
-        
-        Paragraph::new(line_numbers)
+        Paragraph::new(self.line_numbers_in_view.clone())
             .style(Style::default().fg(Color::Rgb(100, 100, 100)))
-            //.scroll((self.offset.y() as u16, self.offset.x() as u16))
             .alignment(Alignment::Right)
     }
 
