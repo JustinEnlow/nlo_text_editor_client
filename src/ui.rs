@@ -11,7 +11,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 
 
-const SAVE_AS_PROMPT: &str = " Save As: ";
+//const SAVE_AS_PROMPT: &str = " Save As: ";
 const GOTO_PROMPT: &str = " Go to: ";
 const FIND_PROMPT: &str = " Find: ";
 const REPLACE_PROMPT: &str = " Replace: ";
@@ -181,6 +181,9 @@ impl UserInterface{
             document_cursor_position: None,
         }
     }
+    pub fn document_modified(&self) -> bool{
+        self.document_modified_status
+    }
     pub fn set_document_modified(&mut self, modified: bool){
         self.document_modified_status = modified;
     }
@@ -269,8 +272,8 @@ impl UserInterface{
                     // util(goto/find/command) bar rect height
                     Constraint::Length(
                         match mode{
-                            Mode::SaveAs 
-                            | Mode::Warning(_) 
+                            /*Mode::SaveAs 
+                            | */Mode::Warning(_) 
                             | Mode::Goto 
                             | Mode::FindReplace
                             | Mode::Command => 1,
@@ -334,7 +337,7 @@ impl UserInterface{
                         match mode{
                             Mode::Goto => GOTO_PROMPT.len() as u16,
                             Mode::FindReplace => FIND_PROMPT.len() as u16,
-                            Mode::SaveAs => SAVE_AS_PROMPT.len() as u16,
+                            //Mode::SaveAs => SAVE_AS_PROMPT.len() as u16,
                             Mode::Command => COMMAND_PROMPT.len() as u16,
                             _ => 0
                         }
@@ -343,7 +346,7 @@ impl UserInterface{
                     Constraint::Length(
                         match mode{
                             Mode::Warning(_) | Mode::Insert => viewport_rect[2].width,
-                            Mode::SaveAs => viewport_rect[2].width - SAVE_AS_PROMPT.len() as u16,
+                            //Mode::SaveAs => viewport_rect[2].width - SAVE_AS_PROMPT.len() as u16,
                             Mode::Goto => viewport_rect[2].width - GOTO_PROMPT.len() as u16,
                             Mode::Command => viewport_rect[2].width - COMMAND_PROMPT.len() as u16,                            
                             Mode::FindReplace => (viewport_rect[2].width / 2) - FIND_PROMPT.len() as u16,
@@ -380,7 +383,7 @@ impl UserInterface{
         self.util_bar_alternate_rect = util_rect[3];
 
         match mode{
-            Mode::Command | Mode::SaveAs | Mode::Goto | Mode::FindReplace=> {
+            Mode::Command | /*Mode::SaveAs | */Mode::Goto | Mode::FindReplace=> {
                 self.util_bar.set_widget_width(self.util_bar_rect.width);
                 self.util_bar_alternate.set_widget_width(self.util_bar_alternate_rect.width);
             }
@@ -455,7 +458,7 @@ impl UserInterface{
         match mode{
             Mode::Goto => Paragraph::new(GOTO_PROMPT),
             Mode::FindReplace => Paragraph::new(FIND_PROMPT),
-            Mode::SaveAs => Paragraph::new(SAVE_AS_PROMPT),
+            //Mode::SaveAs => Paragraph::new(SAVE_AS_PROMPT),
             Mode::Command => Paragraph::new(COMMAND_PROMPT),
             _ => Paragraph::new("")
         }
@@ -472,23 +475,23 @@ impl UserInterface{
                         .style(Style::default().fg(Color::Red))
                 }
             }
-            Mode::Command | Mode::SaveAs => {
+            Mode::Command/* | Mode::SaveAs*/ => {
                 Paragraph::new(self.util_bar.text().to_string()).scroll((0, self.util_bar.offset()))
             }
             Mode::Warning(kind) => Paragraph::new(
                 match kind{
-                    WarningKind::OpenFileIsModified => {
-                        "WARNING! An open file has unsaved changes. Press quit again to ignore and quit."
-                    }
+                    //WarningKind::OpenFileIsModified => {
+                    //    "WARNING! An open file has unsaved changes. Press quit again to ignore and quit."
+                    //}
                     WarningKind::FocusedFileIsModified => {
                         "WARNING! File has unsaved changes. Press close again to ignore and close."
                     }
                     WarningKind::FileSaveFailed => {
                         "WARNING! File could not be saved."
                     }
-                    WarningKind::FileOpenFailed => {
-                        "WARNING! File could not be opened."
-                    }
+                    //WarningKind::FileOpenFailed => {
+                    //    "WARNING! File could not be opened."
+                    //}
                 }
             )
                 .alignment(ratatui::prelude::Alignment::Center)
@@ -548,7 +551,7 @@ impl UserInterface{
                             )
                         }
                     }
-                    Mode::SaveAs | Mode::Goto | Mode::Command => {
+                    /*Mode::SaveAs | */Mode::Goto | Mode::Command => {
                         frame.set_cursor(
                             self.util_bar_rect.x + self.util_bar.cursor_position().saturating_sub(self.util_bar.offset()),
                             self.terminal_size.height

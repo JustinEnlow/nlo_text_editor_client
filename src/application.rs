@@ -32,7 +32,7 @@ const VIEW_SCROLL_AMOUNT: usize = 1;
 pub enum Mode{
     Insert,
     Warning(WarningKind),
-    SaveAs,
+    //SaveAs, //will not have save as mode, because user shouldn't be able to create a new doc within editor
     Command,
     FindReplace,
     Goto,
@@ -40,10 +40,10 @@ pub enum Mode{
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum WarningKind{
-    OpenFileIsModified,
+    //OpenFileIsModified,
     FocusedFileIsModified,
     FileSaveFailed,
-    FileOpenFailed,
+    //FileOpenFailed,
 }
 
 pub enum ClientAction{
@@ -97,6 +97,7 @@ pub enum ClientAction{
     MoveCursorWordEnd,
     MoveCursorWordStart,
     NoOp,
+    Quit,
     QuitIgnoringChanges,
     Resize(u16, u16),
     ScrollViewDown(usize),
@@ -106,6 +107,7 @@ pub enum ClientAction{
     SetModeCommand,
     SetModeFindReplace,
     SetModeGoto,
+    WarningModeExit,
 }
 
 
@@ -205,8 +207,7 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Home,          ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentStart}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::End,           ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentEnd}
                     //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('n'),     ..}, Mode::Insert) => {ClientAction::NewDocument}
-                    (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'),     ..}, Mode::Insert) => {ClientAction::QuitIgnoringChanges}//{Action::Quit}
-                    //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('w'),     ..}, Mode::Insert) => {ClientAction::CloseDocument}
+                    (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'),     ..}, Mode::Insert) => {ClientAction::Quit}
                     //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('s'),     ..}, Mode::Insert) => {ClientAction::Save}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('g'),     ..}, Mode::Insert) => {ClientAction::SetModeGoto}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('f'),     ..}, Mode::Insert) => {ClientAction::SetModeFindReplace}
@@ -234,9 +235,8 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Char(c), ..}, Mode::Insert) => {ClientAction::InsertChar(c)}
     
                     // Warning Mode
-                    //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'), ..}, Mode::Warning(_)) => {Action::QuitIgnoringChanges}
-                    //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('w'), ..}, Mode::Warning(_)) => {Action::CloseDocumentIgnoringChanges}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Esc,       ..}, Mode::Warning(_)) => {Action::WarningModeExit}
+                    (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'), ..}, Mode::Warning(_)) => {ClientAction::QuitIgnoringChanges}
+                    (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Esc,       ..}, Mode::Warning(_)) => {ClientAction::WarningModeExit}
                     
                     // SaveAs Mode
                     //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Enter,         ..}, Mode::SaveAs) => {Action::SaveAsModeAccept}
@@ -648,9 +648,27 @@ impl Application{
             ClientAction::MoveCursorWordStart => {}
             ClientAction::MoveCursorWordEnd => {}
             ClientAction::NoOp => {}
+            ClientAction::Quit => {
+                if self.ui.document_modified(){
+                    self.set_mode(Mode::Warning(WarningKind::FocusedFileIsModified));
+                }else{
+                    self.set_should_quit(true);
+
+                    // send server a close action
+                    let server_action = ServerAction::CloseConnection;
+                    let serialized_server_action = ron::to_string(&server_action)?;
+                    match self.stream.write(serialized_server_action.as_bytes()){
+                        Ok(bytes_written) => {
+                            if bytes_written == 0{} else {}
+                        }
+                        Err(e) => {return Err(Box::new(e));}
+                    }
+                    self.stream.flush()?;
+                }
+            }
             ClientAction::QuitIgnoringChanges => {
                 self.set_should_quit(true);
-                //stream.shutdown(std::net::Shutdown::Both).unwrap();
+
                 // send server a close action
                 let server_action = ServerAction::CloseConnection;
                 let serialized_server_action = ron::to_string(&server_action)?;
@@ -691,6 +709,7 @@ impl Application{
             ClientAction::SetModeCommand => {self.set_mode(Mode::Command)}
             ClientAction::SetModeFindReplace => {self.set_mode(Mode::FindReplace)}
             ClientAction::SetModeGoto => {self.set_mode(Mode::Goto)}
+            ClientAction::WarningModeExit => {self.set_mode(Mode::Insert)}
         }
     
         Ok(())
