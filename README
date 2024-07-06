@@ -1,0 +1,14 @@
+a text editor client
+
+getting started:
+    clone repo
+    navigate to directory
+    cargo install --path .
+
+    remove ~/.cargo/bin/nlo when uninstalling/reinstalling
+    or cargo uninstall nlo_text_editor_client
+
+
+design goals:
+    - editor daemon to reduce resource usage
+    - buffer tabs/splits should be handled by window manager

@@ -3,6 +3,10 @@ name = "nlo_text_editor_client"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "nlo"
+path = "src/main.rs"
+
 [dependencies]
 unicode-segmentation = "1"
 crossterm = {version = "0.26", features = ["event-stream"]}

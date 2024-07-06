@@ -129,7 +129,7 @@ impl Application{
             //TODO: if can't connect, spawn new nlo_text_editor_server and retry
             Err(e) => {
                 restore_terminal(&mut terminal, supports_keyboard_enhancement)?;
-                println!("Could not connect to tcp stream. error: {}", e);
+                println!("Could not connect to tcp stream. Make sure you have started an nlo_server process. error: {}", e);
                 return Err(Box::new(e));
             }
         };
