@@ -290,6 +290,8 @@ impl UserInterface{
             .direction(Direction::Horizontal)
             .constraints(
                 vec![
+                    // line number left padding
+                    //Constraint::Length(if self.display_line_numbers{1}else{0}),
                     // line number rect width
                     Constraint::Length(
                         if self.display_line_numbers{
@@ -298,6 +300,8 @@ impl UserInterface{
                             count_digits(self.document_length) + 1
                         }else{0}
                     ),
+                    // line number right padding
+                    Constraint::Length(if self.display_line_numbers{1}else{0}),
                     // document rect width
                     Constraint::Min(5)
                 ]
@@ -373,7 +377,8 @@ impl UserInterface{
             .split(viewport_rect[2]);
 
         self.line_number_rect = document_and_line_num_rect[0];
-        self.document_rect = document_and_line_num_rect[1];
+        // dont have to set line num right padding(document_and_line_num_rect[1])
+        self.document_rect = document_and_line_num_rect[2];
         self.status_bar_modified_indicator_rect = status_bar_rect[0];
         self.status_bar_file_name_rect = status_bar_rect[1];
         self.status_bar_cursor_position_rect = status_bar_rect[2];
@@ -394,6 +399,7 @@ impl UserInterface{
         }
     }
 
+    //TODO: find out why we have double padding to left of line nums
     pub fn line_number_widget(&self) -> Paragraph<'static>{
         Paragraph::new(self.line_numbers_in_view.clone())
             .style(Style::default().fg(Color::Rgb(100, 100, 100)))
