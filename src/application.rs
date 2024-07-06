@@ -2,6 +2,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use crate::ui::UserInterface;
 use std::error::Error;
 use std::net::TcpStream;
+use std::path::PathBuf;
 use crossterm::{
     cursor,
     terminal,
@@ -153,9 +154,10 @@ impl Application{
     pub fn run(&mut self) -> Result<(), Box<dyn Error>>{
         let mut args: Vec<String> = std::env::args().skip(1).collect();
         if let Some(file) = args.pop(){
+            let path = PathBuf::from(file).canonicalize().expect("could not expand relative file path");
             self.ui.update_layouts(self.mode); //ensures we get the proper document rect size at startup
             //OPEN FILE
-            let response = self.do_ipc_things(ServerAction::OpenFile(file))?;
+            let response = self.do_ipc_things(ServerAction::OpenFile(path))?;
             self.ui.set_document_open(true);
             self.process_server_response(response);
             
