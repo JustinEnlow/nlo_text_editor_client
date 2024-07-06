@@ -32,7 +32,6 @@ const VIEW_SCROLL_AMOUNT: usize = 1;
 pub enum Mode{
     Insert,
     Warning(WarningKind),
-    //SaveAs, //will not have save as mode, because user shouldn't be able to create a new doc within editor
     Command,
     FindReplace,
     Goto,
@@ -200,13 +199,10 @@ impl Application{
                 Ok(match (key_event, self.mode()){
                     // Insert Mode
                     //(KeyEvent{modifiers: KeyModifiers::CONTROL | KeyModifiers::SHIFT, code, ..}, Mode::Insert) => {Action::}
-                    //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::IncrementFocusedDocument}
-                    //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::DecrementFocusedDocument}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Right,         ..}, Mode::Insert) => {ClientAction::MoveCursorWordEnd}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::MoveCursorWordStart}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Home,          ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentStart}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::End,           ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentEnd}
-                    //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('n'),     ..}, Mode::Insert) => {ClientAction::NewDocument}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'),     ..}, Mode::Insert) => {ClientAction::Quit}
                     //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('s'),     ..}, Mode::Insert) => {ClientAction::Save}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('g'),     ..}, Mode::Insert) => {ClientAction::SetModeGoto}
@@ -237,17 +233,6 @@ impl Application{
                     // Warning Mode
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'), ..}, Mode::Warning(_)) => {ClientAction::QuitIgnoringChanges}
                     (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Esc,       ..}, Mode::Warning(_)) => {ClientAction::WarningModeExit}
-                    
-                    // SaveAs Mode
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Enter,         ..}, Mode::SaveAs) => {Action::SaveAsModeAccept}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Delete,        ..}, Mode::SaveAs) => {Action::SaveAsModeDelete}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Backspace,     ..}, Mode::SaveAs) => {Action::SaveAsModeBackspace}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Left,          ..}, Mode::SaveAs) => {Action::SaveAsModeMoveCursorLeft}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Right,         ..}, Mode::SaveAs) => {Action::SaveAsModeMoveCursorRight}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Home,          ..}, Mode::SaveAs) => {Action::SaveAsModeMoveCursorLineStart}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::End,           ..}, Mode::SaveAs) => {Action::SaveAsModeMoveCursorLineEnd}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::SaveAs) => {Action::SaveAsModeClear}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::SaveAs) => {Action::SaveAsModeInsertChar(c)}
     
                     // Goto Mode
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::Goto) => {ClientAction::GotoModeExit}
@@ -724,8 +709,7 @@ impl Application{
             ServerResponse::ConnectionSucceeded => {}
             ServerResponse::Acknowledge => {}
             ServerResponse::DisplayView(content, line_numbers, client_cursor_position, document_cursor_position, modified) => {
-                //println!("Client received: {:#?}", content);
-                self.ui.set_text_in_view(content); //TODO: generate a client action instead of directly performing this
+                self.ui.set_text_in_view(content);
                 self.ui.set_line_numbers_in_view(line_numbers);
                 self.ui.set_client_cursor_position(client_cursor_position);
                 self.ui.set_document_cursor_position(document_cursor_position);
