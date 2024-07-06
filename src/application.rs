@@ -47,6 +47,7 @@ pub enum WarningKind{
 }
 
 pub enum ClientAction{
+    Backspace,
     CommandModeAccept,
     CommandModeBackspace,
     CommandModeDelete,
@@ -56,6 +57,7 @@ pub enum ClientAction{
     CommandModeMoveCursorLineEnd,
     CommandModeMoveCursorLineStart,
     CommandModeMoveCursorRight,
+    Delete,
     DisplayLineNumbers,
     DisplayStatusBar,
     FindReplaceModeAccept,
@@ -79,6 +81,9 @@ pub enum ClientAction{
     GotoModeMoveCursorLineEnd,
     GotoModeMoveCursorLineStart,
     GotoModeMoveCursorRight,
+    InsertChar(char),
+    InsertNewline,
+    InsertTab,
     MoveCursorDocumentEnd,
     MoveCursorDocumentStart,
     MoveCursorDown,
@@ -213,10 +218,10 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::ScrollViewLeft(VIEW_SCROLL_AMOUNT)}
                     (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Right,         ..}, Mode::Insert) => {ClientAction::ScrollViewRight(VIEW_SCROLL_AMOUNT)}
                     (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::ScrollViewUp(VIEW_SCROLL_AMOUNT)}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Tab,           ..}, Mode::Insert) => {ClientAction::InsertTab}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Enter,         ..}, Mode::Insert) => {ClientAction::InsertNewline}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Delete,        ..}, Mode::Insert) => {ClientAction::Delete}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Backspace,     ..}, Mode::Insert) => {ClientAction::Backspace}
+                    (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Tab,           ..}, Mode::Insert) => {ClientAction::InsertTab}
+                    (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Enter,         ..}, Mode::Insert) => {ClientAction::InsertNewline}
+                    (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Delete,        ..}, Mode::Insert) => {ClientAction::Delete}
+                    (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Backspace,     ..}, Mode::Insert) => {ClientAction::Backspace}
                     (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Up,            ..}, Mode::Insert) => {ClientAction::MoveCursorUp}
                     (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::MoveCursorDown}
                     (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::MoveCursorLeft}
@@ -226,7 +231,7 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Home,          ..}, Mode::Insert) => {ClientAction::MoveCursorLineStart}
                     (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::End,           ..}, Mode::Insert) => {ClientAction::MoveCursorLineEnd}
                     //(KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Esc,           ..}, Mode::Insert) => {ClientAction::CollapseSelectionCursor}
-                    //(KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Char(c), ..}, Mode::Insert) => {ClientAction::InsertChar(c)}
+                    (KeyEvent{modifiers: KeyModifiers::NONE,    code: KeyCode::Char(c), ..}, Mode::Insert) => {ClientAction::InsertChar(c)}
     
                     // Warning Mode
                     //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'), ..}, Mode::Warning(_)) => {Action::QuitIgnoringChanges}
@@ -291,6 +296,10 @@ impl Application{
 
     pub fn perform_client_action(&mut self, action: ClientAction) -> Result<(), Box<dyn Error>>{
         match action{
+            ClientAction::Backspace => {
+                let response = self.do_ipc_things(ServerAction::Backspace)?;
+                self.process_server_response(response);
+            }
             ClientAction::CommandModeAccept => {
                 //if parse_command(editor, ui.util_bar().text()).is_ok(){
                     self.ui.util_bar_mut().clear();
@@ -333,6 +342,10 @@ impl Application{
             ClientAction::CommandModeMoveCursorRight => {
                 self.ui.util_bar_mut().move_cursor_right();
                 self.ui.util_bar_mut().scroll();
+            }
+            ClientAction::Delete => {
+                let response = self.do_ipc_things(ServerAction::Delete)?;
+                self.process_server_response(response);
             }
             ClientAction::DisplayLineNumbers => {
                 self.ui.set_display_line_numbers(!self.ui.display_line_numbers());
@@ -587,17 +600,25 @@ impl Application{
                 self.ui.util_bar_mut().move_cursor_right();
                 self.ui.util_bar_mut().scroll();
             }
+            ClientAction::InsertChar(c) => {
+                let response = self.do_ipc_things(ServerAction::InserChar(c))?;
+                self.process_server_response(response);
+            }
+            ClientAction::InsertNewline => {
+                let response = self.do_ipc_things(ServerAction::InsertNewline)?;
+                self.process_server_response(response);
+            }
+            ClientAction::InsertTab => {
+                let response = self.do_ipc_things(ServerAction::InsertTab)?;
+                self.process_server_response(response);
+            }
             ClientAction::MoveCursorDocumentEnd => {
-                //if let Some(doc) = editor.document_mut(){
-                //    doc.move_cursor_document_end();
-                //}
-                //ui.scroll(editor);
+                let response = self.do_ipc_things(ServerAction::MoveCursorDocumentEnd)?;
+                self.process_server_response(response);
             }
             ClientAction::MoveCursorDocumentStart => {
-                //if let Some(doc) = editor.document_mut(){
-                //    doc.move_cursor_document_start();
-                //}
-                //ui.scroll(editor);
+                let response = self.do_ipc_things(ServerAction::MoveCursorDocumentStart)?;
+                self.process_server_response(response);
             }
             ClientAction::MoveCursorDown => {
                 let response = self.do_ipc_things(ServerAction::MoveCursorDown)?;
@@ -690,12 +711,13 @@ impl Application{
             }
             ServerResponse::ConnectionSucceeded => {}
             ServerResponse::Acknowledge => {}
-            ServerResponse::DisplayView(content, line_numbers, client_cursor_position, document_cursor_position) => {
+            ServerResponse::DisplayView(content, line_numbers, client_cursor_position, document_cursor_position, modified) => {
                 //println!("Client received: {:#?}", content);
                 self.ui.set_text_in_view(content); //TODO: generate a client action instead of directly performing this
                 self.ui.set_line_numbers_in_view(line_numbers);
                 self.ui.set_client_cursor_position(client_cursor_position);
                 self.ui.set_document_cursor_position(document_cursor_position);
+                self.ui.set_document_modified(modified);
             }
             ServerResponse::Failed(_) => {}
             ServerResponse::CursorPosition(client_cursor_position, document_cursor_position) => {

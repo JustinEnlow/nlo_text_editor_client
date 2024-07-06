@@ -181,6 +181,9 @@ impl UserInterface{
             document_cursor_position: None,
         }
     }
+    pub fn set_document_modified(&mut self, modified: bool){
+        self.document_modified_status = modified;
+    }
     pub fn set_terminal_size(&mut self, width: u16, height: u16){
         self.terminal_size.width = width;
         self.terminal_size.height = height;
