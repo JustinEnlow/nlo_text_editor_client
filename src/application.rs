@@ -482,23 +482,16 @@ impl Application{
             }
             ClientAction::GotoModeAccept => {
                 if let Ok(line_number) = self.ui.util_bar().text().parse::<usize>(){
-                    //if let Some(doc) = editor.document_mut(){
-                    //    if doc.go_to(line_number.saturating_sub(1)).is_ok(){
-                    //        ui.util_bar_mut().clear();
-                    //        ui.util_bar_mut().set_offset(0);
-                    //        app.set_mode(Mode::Insert);
-                    //        ui.scroll(editor);
-                    //    }
-                    //}
                     if self.ui.document_open(){
-                        if line_number.saturating_sub(1) <= self.ui.document_length(){
+                        if line_number.saturating_sub(1) < self.ui.document_length(){
+                            let response = self.do_ipc_things(ServerAction::GoTo(line_number.saturating_sub(1)))?;
+                            self.process_server_response(response);
+                            
                             self.ui.util_bar_mut().clear();
                             self.ui.util_bar_mut().set_offset(0);
                             self.set_mode(Mode::Insert);
                         }
                     }
-    
-                    //TODO: send action request to server
                 }
             }
             ClientAction::GotoModeBackspace => {
