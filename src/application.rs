@@ -100,6 +100,7 @@ pub enum ClientAction{
     Quit,
     QuitIgnoringChanges,
     Resize(u16, u16),
+    Save,
     ScrollViewDown(usize),
     ScrollViewLeft(usize),
     ScrollViewRight(usize),
@@ -206,7 +207,7 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Home,          ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentStart}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::End,           ..}, Mode::Insert) => {ClientAction::MoveCursorDocumentEnd}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('q'),     ..}, Mode::Insert) => {ClientAction::Quit}
-                    //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('s'),     ..}, Mode::Insert) => {ClientAction::Save}
+                    (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('s'),     ..}, Mode::Insert) => {ClientAction::Save}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('g'),     ..}, Mode::Insert) => {ClientAction::SetModeGoto}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('f'),     ..}, Mode::Insert) => {ClientAction::SetModeFindReplace}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('l'),     ..}, Mode::Insert) => {ClientAction::DisplayLineNumbers}
@@ -675,6 +676,10 @@ impl Application{
                 let response = self.do_ipc_things(
                     ServerAction::UpdateClientViewSize(self.ui.document_rect().width, self.ui.document_rect().height)
                 )?;
+                self.process_server_response(response);
+            }
+            ClientAction::Save => {
+                let response = self.do_ipc_things(ServerAction::Save)?;
                 self.process_server_response(response);
             }
             ClientAction::ScrollViewDown(amount) => {
