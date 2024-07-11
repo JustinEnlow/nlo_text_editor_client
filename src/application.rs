@@ -152,31 +152,24 @@ impl Application{
     //Handler Execution: executes and performs the necessary actions based on the event
         //(For example, if a user presses "Ctrl+S", the corresponding handler might save the current buffer to disk)
     //Redraw and Display: Updates display (or redraws the screen) to reflect any changes resulting from the event handling
-    pub fn run(&mut self) -> Result<(), Box<dyn Error>>{
-        let mut args: Vec<String> = std::env::args().skip(1).collect();
-        if let Some(file) = args.pop(){
-            let path = PathBuf::from(file).canonicalize().expect("could not expand relative file path");
-            self.ui.update_layouts(self.mode); //ensures we get the proper document rect size at startup
-            //OPEN FILE
-            let response = self.do_ipc_things(ServerAction::OpenFile(path))?;
-            self.ui.set_document_open(true);
-            self.process_server_response(response);
-            
-            //UPDATE CLIENT VIEW SIZE
-            let response = self.do_ipc_things(
-                ServerAction::UpdateClientViewSize(self.ui.document_rect().width, self.ui.document_rect().height)
-            )?;
-            self.process_server_response(response);
-        }
+    pub fn run(&mut self, file_path: String) -> Result<(), Box<dyn Error>>{
+        let path = PathBuf::from(file_path).canonicalize().expect("could not expand relative file path");
+        self.ui.update_layouts(self.mode); //ensures we get the proper document rect size at startup
+        //OPEN FILE
+        let response = self.do_ipc_things(ServerAction::OpenFile(path))?;
+        //self.ui.set_document_open(true);
+        self.process_server_response(response);
+        
+        //UPDATE CLIENT VIEW SIZE
+        let response = self.do_ipc_things(
+            ServerAction::UpdateClientViewSize(self.ui.document_rect().width, self.ui.document_rect().height)
+        )?;
+        self.process_server_response(response);
 
         loop{
             if self.should_quit(){
                 return Ok(());
             }
-            // get values needed in render from server
-            //let response = do_ipc_things(stream, ServerAction::RequestDocumentModifiedStatus)?;
-            //process_server_response(response, ui);
-            //
             self.ui.render(&mut self.host_terminal, self.mode)?;
             let action = self.handle_event()?;
             self.perform_client_action(action)?;
@@ -278,6 +271,7 @@ impl Application{
                 })
             },
             event::Event::Resize(x, y) => {Ok(ClientAction::Resize(x, y))}
+            //event::Event::FocusGained => {/*notify editor server of focus gained*/}
             _ => {Ok(ClientAction::NoOp)}
         }
     }
@@ -470,7 +464,6 @@ impl Application{
             }
             ClientAction::GotoModeAccept => {
                 if let Ok(line_number) = self.ui.util_bar().text().parse::<usize>(){
-                    if self.ui.document_open(){
                         if line_number.saturating_sub(1) < self.ui.document_length(){
                             let response = self.do_ipc_things(ServerAction::GoTo(line_number.saturating_sub(1)))?;
                             self.process_server_response(response);
@@ -479,7 +472,6 @@ impl Application{
                             self.ui.util_bar_mut().set_offset(0);
                             self.set_mode(Mode::Insert);
                         }
-                    }
                 }
             }
             ClientAction::GotoModeBackspace => {

@@ -47,3 +47,4 @@
 46
 47
 48
+\e[1;31m This is red text \e[0m

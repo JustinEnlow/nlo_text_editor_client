@@ -16,7 +16,6 @@ const FIND_PROMPT: &str = " Find: ";
 const REPLACE_PROMPT: &str = " Replace: ";
 const MODIFIED_INDICATOR: &str = "[Modified]";
 const COMMAND_PROMPT: &str = " Command: ";
-const DEFAULT_DOCUMENT_TEXT: &str = "Nlo Text Editor\n\nNo Document Open";
 
 
 
@@ -145,7 +144,6 @@ pub struct UserInterface{
     util_bar_alternate: UtilBar,
     text_in_view: String,
     line_numbers_in_view: String,
-    document_open: bool,
     client_cursor_position: Option<Position>,
     document_length: usize,
     document_modified_status: bool,
@@ -172,7 +170,6 @@ impl UserInterface{
             util_bar_alternate: UtilBar::default(),
             text_in_view: String::new(),
             line_numbers_in_view: String::new(),
-            document_open: false,
             client_cursor_position: None,
             document_length: 0,
             document_modified_status: false,
@@ -244,13 +241,6 @@ impl UserInterface{
     }
     pub fn set_line_numbers_in_view(&mut self, line_numbers: String){
         self.line_numbers_in_view = line_numbers;
-    }
-
-    pub fn document_open(&self) -> bool{
-        self.document_open
-    }
-    pub fn set_document_open(&mut self, val: bool){
-        self.document_open = val;
     }
 
     pub fn set_client_cursor_position(&mut self, position: Option<Position>){
@@ -401,13 +391,7 @@ impl UserInterface{
     }
 
     pub fn document_widget(&self) -> Paragraph<'static>{
-        if self.document_open{
             Paragraph::new(self.text_in_view.clone())
-        }else{
-            Paragraph::new(DEFAULT_DOCUMENT_TEXT)
-                .alignment(Alignment::Center)
-                .red()
-        }
     }
 
     pub fn status_bar_modified_indicator_widget(&self) -> Paragraph<'static>{
