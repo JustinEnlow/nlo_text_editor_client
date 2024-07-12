@@ -209,6 +209,7 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('k'),     ..}, Mode::Insert) => {ClientAction::DisplayStatusBar}
                     (KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('o'),     ..}, Mode::Insert) => {ClientAction::SetModeCommand}
                     //(KeyEvent{modifiers: KeyModifiers::CONTROL, code: KeyCode::Char('t'),     ..}, Mode::Insert) => {ClientAction::OpenNewTerminalWindow}
+                    (KeyEvent{modifiers: KeyModifiers::SHIFT,   code: KeyCode::Char(c), ..}, Mode::Insert) => {ClientAction::InsertChar(c)}
                     (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Down,          ..}, Mode::Insert) => {ClientAction::ScrollViewDown(VIEW_SCROLL_AMOUNT)}
                     (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Left,          ..}, Mode::Insert) => {ClientAction::ScrollViewLeft(VIEW_SCROLL_AMOUNT)}
                     (KeyEvent{modifiers: KeyModifiers::ALT,     code: KeyCode::Right,         ..}, Mode::Insert) => {ClientAction::ScrollViewRight(VIEW_SCROLL_AMOUNT)}
