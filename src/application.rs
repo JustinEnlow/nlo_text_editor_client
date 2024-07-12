@@ -635,8 +635,8 @@ impl Application{
                     let server_action = ServerAction::CloseConnection;
                     let serialized_server_action = ron::to_string(&server_action)?;
                     match self.stream.write(serialized_server_action.as_bytes()){
-                        Ok(bytes_written) => {
-                            if bytes_written == 0{} else {}
+                        Ok(_bytes_written) => {
+                            //if bytes_written == 0{} else {}
                         }
                         Err(e) => {return Err(Box::new(e));}
                     }
@@ -650,8 +650,8 @@ impl Application{
                 let server_action = ServerAction::CloseConnection;
                 let serialized_server_action = ron::to_string(&server_action)?;
                 match self.stream.write(serialized_server_action.as_bytes()){
-                    Ok(bytes_written) => {
-                        if bytes_written == 0{} else {}
+                    Ok(_bytes_written) => {
+                        //if bytes_written == 0{} else {}
                     }
                     Err(e) => {return Err(Box::new(e));}
                 }
@@ -725,8 +725,8 @@ impl Application{
     pub fn do_ipc_things(&mut self, action: ServerAction) -> Result<ServerResponse, Box<dyn Error>>{
         let serialized_action = ron::to_string(&action)?;
         match self.stream.write(serialized_action.as_bytes()){
-            Ok(bytes_written) => {
-                if bytes_written == 0{} else {}
+            Ok(_bytes_written) => {
+                //if bytes_written == 0{} else {}
             }
             Err(e) => {return Err(Box::new(e));}
         }
@@ -738,13 +738,13 @@ impl Application{
                 let my_string = String::from_utf8_lossy(&response_buffer[0..size]);
                 match ron::from_str(&my_string){
                     Ok(response) => {return Ok(response)},
-                    Err(e) => {return Err(Box::new(e));}
+                    Err(e) => {return Err(Box::new(e))}
                 };
             }
             Err(e) => {
                 println!("An error occurred. {}", e);
                 self.stream.shutdown(std::net::Shutdown::Both).unwrap();
-                return Err(Box::new(e));
+                Err(Box::new(e))
             }
         }
     }
