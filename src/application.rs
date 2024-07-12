@@ -160,6 +160,7 @@ impl Application{
         let response = self.do_ipc_things(ServerAction::OpenFile{file_path: path})?;
         self.process_server_response(response);
         
+        self.ui.update_layouts(self.mode);
         //UPDATE CLIENT VIEW SIZE
         let response = self.do_ipc_things(
             ServerAction::UpdateClientViewSize{
