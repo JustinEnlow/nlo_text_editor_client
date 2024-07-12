@@ -11,4 +11,7 @@ getting started:
 
 design goals:
     - editor daemon to reduce resource usage
+    - multicursor/multiselection
     - buffer tabs/splits should be handled by window manager
+    - treesitter support
+    - language server protocol support

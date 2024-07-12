@@ -36,6 +36,7 @@ pub enum Mode{
     Command,
     FindReplace,
     Goto,
+    //Utility(UtilityKind),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -156,13 +157,14 @@ impl Application{
         let path = PathBuf::from(file_path).canonicalize().expect("could not expand relative file path");
         self.ui.update_layouts(self.mode); //ensures we get the proper document rect size at startup
         //OPEN FILE
-        let response = self.do_ipc_things(ServerAction::OpenFile(path))?;
-        //self.ui.set_document_open(true);
+        let response = self.do_ipc_things(ServerAction::OpenFile{file_path: path})?;
         self.process_server_response(response);
         
         //UPDATE CLIENT VIEW SIZE
         let response = self.do_ipc_things(
-            ServerAction::UpdateClientViewSize(self.ui.document_rect().width, self.ui.document_rect().height)
+            ServerAction::UpdateClientViewSize{
+                width: self.ui.document_rect().width, height: self.ui.document_rect().height
+            }
         )?;
         self.process_server_response(response);
 
@@ -271,7 +273,6 @@ impl Application{
                 })
             },
             event::Event::Resize(x, y) => {Ok(ClientAction::Resize(x, y))}
-            //event::Event::FocusGained => {/*notify editor server of focus gained*/}
             _ => {Ok(ClientAction::NoOp)}
         }
     }
@@ -332,24 +333,26 @@ impl Application{
             ClientAction::DisplayLineNumbers => {
                 self.ui.set_display_line_numbers(!self.ui.display_line_numbers());
                 
-                // send UpdateClientViewSize request to server
                 self.ui.update_layouts(self.mode);
                 let response = self.do_ipc_things(
-                    ServerAction::UpdateClientViewSize(self.ui.document_rect().width, self.ui.document_rect().height)
+                    ServerAction::UpdateClientViewSize{
+                        width: self.ui.document_rect().width, 
+                        height: self.ui.document_rect().height
+                    }
                 )?;
                 self.process_server_response(response);
-                //
             }
             ClientAction::DisplayStatusBar => {
                 self.ui.set_display_status_bar(!self.ui.display_status_bar());
                 
-                // send UpdateClientViewSize request to server
                 self.ui.update_layouts(self.mode);
                 let response = self.do_ipc_things(
-                    ServerAction::UpdateClientViewSize(self.ui.document_rect().width, self.ui.document_rect().height)
+                    ServerAction::UpdateClientViewSize{
+                        width: self.ui.document_rect().width, 
+                        height: self.ui.document_rect().height
+                    }
                 )?;
                 self.process_server_response(response);
-                //
             }
             ClientAction::FindReplaceModeAccept => {}
             ClientAction::FindReplaceModeBackspace => {
@@ -465,7 +468,9 @@ impl Application{
             ClientAction::GotoModeAccept => {
                 if let Ok(line_number) = self.ui.util_bar().text().parse::<usize>(){
                         if line_number.saturating_sub(1) < self.ui.document_length(){
-                            let response = self.do_ipc_things(ServerAction::GoTo(line_number.saturating_sub(1)))?;
+                            let response = self.do_ipc_things(
+                                ServerAction::GoTo{line_number: line_number.saturating_sub(1)}
+                            )?;
                             self.process_server_response(response);
                             
                             self.ui.util_bar_mut().clear();
@@ -487,9 +492,6 @@ impl Application{
                 }
                 let exceeds_doc_length = match self.ui.util_bar().text().parse::<usize>(){
                     Ok(line_number) => {
-                        //if let Some(doc) = editor.document(){
-                        //    line_number > doc.len()
-                        //}else{true}
                         line_number > self.ui.document_length()
                     }
                     Err(_) => false
@@ -513,9 +515,6 @@ impl Application{
                 }
                 let exceeds_doc_length = match self.ui.util_bar().text().parse::<usize>(){
                     Ok(line_number) => {
-                        //if let Some(doc) = editor.document(){
-                        //    line_number > doc.len()
-                        //}else{true}
                         line_number > self.ui.document_length()
                     }
                     Err(_) => false
@@ -544,9 +543,6 @@ impl Application{
                 }
                 let exceeds_doc_length = match self.ui.util_bar().text().parse::<usize>(){
                     Ok(line_number) => {
-                        //if let Some(doc) = editor.document(){
-                        //    line_number > doc.len()
-                        //}else{true}
                         line_number > self.ui.document_length()
                     }
                     Err(_) => false
@@ -666,7 +662,10 @@ impl Application{
                 self.ui.util_bar_mut().scroll();
                 self.ui.util_bar_alternate_mut().scroll();
                 let response = self.do_ipc_things(
-                    ServerAction::UpdateClientViewSize(self.ui.document_rect().width, self.ui.document_rect().height)
+                    ServerAction::UpdateClientViewSize{
+                        width: self.ui.document_rect().width, 
+                        height: self.ui.document_rect().height
+                    }
                 )?;
                 self.process_server_response(response);
             }
@@ -675,19 +674,19 @@ impl Application{
                 self.process_server_response(response);
             }
             ClientAction::ScrollViewDown(amount) => {
-                let response = self.do_ipc_things(ServerAction::ScrollClientViewDown(amount))?;
+                let response = self.do_ipc_things(ServerAction::ScrollClientViewDown{amount})?;
                 self.process_server_response(response);
             }
             ClientAction::ScrollViewLeft(amount) => {
-                let response = self.do_ipc_things(ServerAction::ScrollClientViewLeft(amount))?;
+                let response = self.do_ipc_things(ServerAction::ScrollClientViewLeft{amount})?;
                 self.process_server_response(response);
             }
             ClientAction::ScrollViewRight(amount) => {
-                let response = self.do_ipc_things(ServerAction::ScrollClientViewRight(amount))?;
+                let response = self.do_ipc_things(ServerAction::ScrollClientViewRight{amount})?;
                 self.process_server_response(response);
             }
             ClientAction::ScrollViewUp(amount) => {
-                let response = self.do_ipc_things(ServerAction::ScrollClientViewUp(amount))?;
+                let response = self.do_ipc_things(ServerAction::ScrollClientViewUp{amount})?;
                 self.process_server_response(response);
             }
             ClientAction::SetModeCommand => {self.set_mode(Mode::Command)}
@@ -701,13 +700,13 @@ impl Application{
 
     pub fn process_server_response(&mut self, response: ServerResponse){
         match response{
-            ServerResponse::FileOpened(maybe_file_name, document_length) => {
-                self.ui.set_file_name(maybe_file_name);
+            ServerResponse::FileOpened{file_name, document_length} => {
+                self.ui.set_file_name(file_name);
                 self.ui.set_document_length(document_length);
             }
             ServerResponse::ConnectionSucceeded => {}
             ServerResponse::Acknowledge => {}
-            ServerResponse::DisplayView(content, line_numbers, client_cursor_position, document_cursor_position, modified) => {
+            ServerResponse::DisplayView{content, line_numbers, client_cursor_position, document_cursor_position, modified} => {
                 self.ui.set_text_in_view(content);
                 self.ui.set_line_numbers_in_view(line_numbers);
                 self.ui.set_client_cursor_position(client_cursor_position);
@@ -715,7 +714,7 @@ impl Application{
                 self.ui.set_document_modified(modified);
             }
             ServerResponse::Failed(_) => {}
-            ServerResponse::CursorPosition(client_cursor_position, document_cursor_position) => {
+            ServerResponse::CursorPosition{client_cursor_position, document_cursor_position} => {
                 self.ui.set_client_cursor_position(client_cursor_position);
                 self.ui.set_document_cursor_position(document_cursor_position);
             }
