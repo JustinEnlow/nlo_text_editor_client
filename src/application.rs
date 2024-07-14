@@ -738,9 +738,9 @@ impl Application{
             Ok(size) => {
                 let my_string = String::from_utf8_lossy(&response_buffer[0..size]);
                 match ron::from_str(&my_string){
-                    Ok(response) => {return Ok(response)},
-                    Err(e) => {return Err(Box::new(e))}
-                };
+                    Ok(response) => {Ok(response)},
+                    Err(e) => {Err(Box::new(e))}
+                }
             }
             Err(e) => {
                 println!("An error occurred. {}", e);
@@ -798,7 +798,7 @@ pub fn restore_terminal(
     }
     terminal::disable_raw_mode()?;
     terminal.backend_mut().execute(crossterm::terminal::LeaveAlternateScreen)?;
-    terminal.backend_mut().execute(crossterm::cursor::SetCursorStyle::DefaultUserShape)?;    
+    terminal.backend_mut().execute(crossterm::cursor::SetCursorStyle::DefaultUserShape)?;
     terminal.show_cursor()?;
     
     Ok(())
