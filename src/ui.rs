@@ -243,8 +243,13 @@ impl UserInterface{
         self.line_numbers_in_view = line_numbers;
     }
 
-    pub fn set_client_cursor_position(&mut self, position: Option<Position>){
-        self.client_cursor_position = position;
+    pub fn set_client_cursor_position(&mut self, positions: Vec<Position>){
+        //self.client_cursor_position = position;
+        if positions.len() > 0{
+            self.client_cursor_position = Some(*positions.last().unwrap());
+        }else{
+            self.client_cursor_position = None;
+        }
     }
 
 
