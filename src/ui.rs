@@ -245,7 +245,7 @@ impl UserInterface{
 
     pub fn set_client_cursor_position(&mut self, positions: Vec<Position>){
         //self.client_cursor_position = position;
-        if positions.len() > 0{
+        if !positions.is_empty(){
             self.client_cursor_position = Some(*positions.last().unwrap());
         }else{
             self.client_cursor_position = None;
@@ -428,8 +428,8 @@ impl UserInterface{
             Some(cursor_position) => {
                 format!(
                     "{}:{}",
-                    cursor_position.y() + 1,
-                    cursor_position.x() + 1
+                    cursor_position.y(),// + 1,
+                    cursor_position.x()// + 1
                 )
             }
             None => "None".to_string()
