@@ -1,4 +1,4 @@
-use ratatui::{backend::CrosstermBackend, Terminal}; //lskdjflksjdlfkjsldkjflskjdlfkjsldkfjlskdjflksjdlkfjlskdjflksjdlfkjslkdjflksjdflkjsldkjflskjdflkjsjdlkfjslkdjjflksjdflkjsldkjflksjdflkjsldkfjlskdjflkjsdlkfjslkdjflksjdlfkjsldkfjlskdjflksjdflkjsldkjflskdjflksjdflkjsdlkfjslkdjflskdjflksjdf
+use ratatui::{backend::CrosstermBackend, Terminal};
 use crate::ui::UserInterface;
 use std::error::Error;
 use std::net::TcpStream;
@@ -155,7 +155,6 @@ impl Application{
     //Redraw and Display: Updates display (or redraws the screen) to reflect any changes resulting from the event handling
     pub fn run(&mut self, file_path: String) -> Result<(), Box<dyn Error>>{
         let path = PathBuf::from(file_path).canonicalize().expect("could not expand relative file path");
-        //self.ui.update_layouts(self.mode); //ensures we get the proper document rect size at startup
         //OPEN FILE
         let response = self.do_ipc_things(ServerAction::OpenFile{file_path: path})?;
         self.process_server_response(response);
@@ -170,12 +169,13 @@ impl Application{
         self.process_server_response(response);
 
         loop{
-            if self.should_quit(){
-                return Ok(());
-            }
+            self.ui.update_layouts(self.mode);
             self.ui.render(&mut self.host_terminal, self.mode)?;
             let action = self.handle_event()?;
             self.perform_client_action(action)?;
+            if self.should_quit(){
+                return Ok(());
+            }
         }
     }
 
@@ -246,6 +246,7 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::Goto) => {ClientAction::GotoModeInsertChar(c)}
                 
                     // FindReplace Mode
+                    (KeyEvent{modifiers: KeyModifiers::SHIFT, code: KeyCode::Char(c), ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeInsertChar(c)}
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeExit}
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Tab,           ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeSwitchUtilBarFocus}
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Up,            ..}, Mode::FindReplace) => {ClientAction::FindReplaceModePreviousInstance}
@@ -260,6 +261,7 @@ impl Application{
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::FindReplace) => {ClientAction::FindReplaceModeInsertChar(c)}
                 
                     // Command Mode
+                    (KeyEvent{modifiers: KeyModifiers::SHIFT, code: KeyCode::Char(c), ..}, Mode::Command) => {ClientAction::CommandModeInsertChar(c)}
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Esc,           ..}, Mode::Command) => {ClientAction::CommandModeExit}
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Char(c), ..}, Mode::Command) => {ClientAction::CommandModeInsertChar(c)}
                     (KeyEvent{modifiers: KeyModifiers::NONE, code: KeyCode::Enter,         ..}, Mode::Command) => {ClientAction::CommandModeAccept}

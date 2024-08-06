@@ -509,11 +509,7 @@ impl UserInterface{
     }
 
     // when in select mode, figure out how to change background color of text within cursor_head and cursor_anchor
-    pub fn render(&mut self, terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, mode: Mode) -> Result<(), Box<dyn Error>>{
-        // testing calling this here, instead of from main.rs
-        self.update_layouts(mode);
-        //
-        
+    pub fn render(&mut self, terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, mode: Mode) -> Result<(), Box<dyn Error>>{        
         terminal.draw(
             |frame| {
 
@@ -558,6 +554,7 @@ impl UserInterface{
                     Mode::Warning(_) => {}
                 }
             }
+
         )?;
 
         Ok(())
